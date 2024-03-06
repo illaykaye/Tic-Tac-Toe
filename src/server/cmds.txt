@@ -1,0 +1,25 @@
+login - "{token} {"login"} {username} {password}"
+    if logged:
+        "logged"
+    else
+        "not_logged"
+
+signup - "{token} {"signup"} {username} {password}"
+    if signup:
+        "signup"
+        and client logs
+    else 
+        "usr_taken"
+        client needs to prevent too long username and passwords
+
+move - "{token} {"move"} {game id} {i} {j}"
+
+join game - "{token} {"login"} {game_id}"
+    
+spec game - "{token} {"spec"} {game_id}"
+
+board - "{token} {"board"}"
+
+new game - "{token} {"new"}"
+aval games - "{token} {"aval"}"
+exit game  - "{token} {"exit"}"
