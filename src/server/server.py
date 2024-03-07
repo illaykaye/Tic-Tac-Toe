@@ -52,63 +52,40 @@ class Server():
         while True:
             try:
                 cmd = cp.decrypt(conn.recv(4096))
-                req = cmd.split(" ")
+                packet = json.loads(cmd)
+
                 sendall = False
-                if req[0] != self.connections[addr][1]:
+                if packet["token"] != self.connections[addr][1]:
                     break
-                req = req[1::]
+                req = packet["req"]
                 # login
-                if req[0] == "login":
-                    if cmds.login(req):
-                        data = "logged"
-                        username = req[1]
-                    else: 
-                        data = "not_found"
-
+                if req == "login":
+                    to_send = cmds.Commands(self).login(req)
                 # sign up
-                elif req[0] == "signup":
-                    if cmds.signup(req):
-                        data = "signed_up"
-                    else:
-                        data = "usr_unavl"
-
+                elif req == "signup":
+                    to_send = cmds.Commands(self).signup(req)
                 # new game
-                elif req[0] == "new_game":
-                    game_id = len(self.games)
-                    self.games.append(cmds.new_game(req,game_id))
-                    data = "crtd_gm {}".format(game_id)
-
+                elif req == "new_game":
+                    to_send = cmds.Commands(self).new_game(req)
                 # list available games
                 elif req[0] == "aval_games":
-                    data = cmds.aval_games(self.games)
-
+                    to_send = cmds.Commands(self).aval_games(req)
                 # req to join game
                 elif req[0] == "join_game":
-                    id = cmds.join_game(req)
-                    if id > 0:
-                        data = "jnd_gm {}".format(id)
-                    else:
-                        data = "unable_jn"
-
+                    to_send = cmds.Commands(self).join_game(req)
                 # ask to spec game
                 elif req[0] == "spec":
-                    g : game.Game = self.games[int(req[1])]
-                    g.add_spectator(conn)
-                    data = "spec_succ {} {}".format(g.id, g.board)
-
+                    to_send = cmds.Commands(self).spec_game(req)
                 # players makes a move
                 elif req[0] == "move":
-                    g : game.Game = self.games[int(req[1])]
-                    g.move(req[2],req[3])
-                    data = "board {}".format(json.dump(g.board))
-
+                    to_send = cmds.Commands(self).move(req)
                 # respond to client/s
-                if not sendall: conn.send(cp.encrypt(data))
+                if not sendall: conn.send(cp.encrypt(to_send))
                 else:
                     all = list(g.players.values())
                     all.append(g.spectators)
                     for conn in all:
-                        conn.send(cp.encrypt(data))
+                        conn.send(cp.encrypt(to_send))
             except:
                 print("[CLIENT CONNECTION INTERRUPTED] on address: ", addr)
 

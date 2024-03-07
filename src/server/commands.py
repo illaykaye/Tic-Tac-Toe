@@ -93,6 +93,9 @@ class Commands():
             g.add_player(conn)
             return "cnctd"
 
+    def spec_game(self, req):
+        return 0
+
     def aval_games(games: list[game.Game]):
         data = {}
         for g in games:
@@ -100,3 +103,6 @@ class Commands():
 
     def leaderboard():
         return 1
+    
+    def move(self, req):
+        return 0
