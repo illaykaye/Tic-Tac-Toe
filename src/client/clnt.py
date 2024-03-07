@@ -14,6 +14,7 @@ class Client():
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.recvd_data = ""
         self.token = 0
+        self.game_id = None
 
     def start_client(self):
         self.client_socket.connect((HOST, PORT))  # Connecting to server's socket
@@ -25,16 +26,25 @@ class Client():
         self.client_socket.close()
 
     def request(self,req, *argv):
-        data = "{} {}".format(self.token, req)
+        packet = {
+            "token": self.token,
+            "req": req,
+            "data": None,
+            "timestamp": time.time()
+        }
         if req in ["move"]:
-            data = data + " {} {}".format(self.token, req, argv[0], argv[1], argv[2])
+            packet["data"] = {"game_id": self.game_id, "i": argv[0], "j": argv[1]}
+            #data = data + " {} {}".format(self.token, req, argv[0], argv[1], argv[2])
         elif req in ["login", "signup"]:
-            data = data + " {} {}".format(self.token, req, argv[0], argv[1])
-        elif req in ["new", "join", "spec"]: 
+            packet["data"] = {"username": argv[0], "password": argv[1]}
+            #data = data + " {} {}".format(self.token, req, argv[0], argv[1])
+        elif req in ["new", "join", "spec"]:
+            packet["data"] = {"game_id", argv[0]}
             data = data + " {} {}".format(self.token, req, argv[0]) # num players / game id
         elif req in ["lb", "aval"]:
-            data = data + ""
-        self.client_socket.send(cp.encrypt(data))
+            packet.pop("data")
+
+        self.client_socket.send(cp.encrypt(json.dump(packet)))
         time.sleep(0.05)
         self.recvd_data = cp.decrypt(self.client_socket.recv(4096))
    
