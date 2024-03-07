@@ -1,6 +1,12 @@
 import socket
 import json
 import time
+from pathlib import Path
+import sys
+
+path_root = Path(__file__).parents[2]
+sys.path.append(str(path_root))
+
 import src.crypto.crypto as cp
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
@@ -19,7 +25,8 @@ class Client():
     def start_client(self):
         self.client_socket.connect((HOST, PORT))  # Connecting to server's socket
         print("Connecting")
-        self.token = cp.decrypt(self.client_socket.recv(1024))
+        packet = json.loads(cp.decrypt(self.client_socket.recv(1024)))
+        self.token = packet["token"]
         print(self.token)
 
     def close_client(self):
@@ -34,36 +41,15 @@ class Client():
         }
         if req in ["move"]:
             packet["data"] = {"game_id": self.game_id, "i": argv[0], "j": argv[1]}
-            #data = data + " {} {}".format(self.token, req, argv[0], argv[1], argv[2])
         elif req in ["login", "signup"]:
             packet["data"] = {"username": argv[0], "password": argv[1]}
-            #data = data + " {} {}".format(self.token, req, argv[0], argv[1])
-        elif req in ["new", "join", "spec"]:
-            packet["data"] = {"game_id", argv[0]}
-            data = data + " {} {}".format(self.token, req, argv[0]) # num players / game id
-        elif req in ["lb", "aval"]:
-            packet.pop("data")
+        elif req in ["join", "spec"]:
+            packet["data"] = {"game_id", argv[0]} # arg - game_id
+        elif req in ["new"]:
+            packet["data"] = {"num_players", argv[0]} # arg - num_players
+        elif req in ["lb", "aval", "exit"]:
+            packet.pop("data") # no args or data needed
 
         self.client_socket.send(cp.encrypt(json.dump(packet)))
         time.sleep(0.05)
         self.recvd_data = cp.decrypt(self.client_socket.recv(4096))
-   
-
-    def leaderboard(self):
-        self.client_socket.send("leaderboard".encode(FORMAT))
-        response = self.client_socket.recv(4096).decode(FORMAT)
-        return json.loads(response)
-    
-    def available_games(self):
-        self.client_socket.send("aval_games".encode(FORMAT))
-        response = self.client_socket.recv(4096)
-        return json.loads(response)
-
-    def new_game(self):
-        return 0
-
-    def join_game(self, game_id):
-        self.client_socket.send("join {}".format(game_id).encode(FORMAT))
-
-    def exit_game(self):
-        return 0

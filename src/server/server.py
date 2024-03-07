@@ -1,10 +1,15 @@
 import socket
 import threading
-import time
 import uuid
 import commands as cmds
 import game
 import json
+from pathlib import Path
+import sys
+
+path_root = Path(__file__).parents[2]
+sys.path.append(str(path_root))
+
 import src.crypto.crypto as cp
 
 HOST = '127.0.0.1'
@@ -19,7 +24,7 @@ class Server():
         self.port = port
         self.addr = (self.host, self.port)
 
-        self.data_hazard = False
+        self.data_hazard = {"users": False, "leader": False}
         self.connections = {}
         self.games = []
 
@@ -45,9 +50,10 @@ class Server():
     def handle_client(self, conn: socket.socket, addr):
         print('[CLIENT CONNECTED] on address: ', addr)  # Printing connection address
         token = uuid.uuid4()
-        username = ""
+
         self.connections[addr] = (conn,token)
-        conn.send("{}".format(token).encode(FORMAT))
+        token_packet = json.dumps({"token": token})
+        conn.send(cp.encrypt(token_packet))
 
         while True:
             try:
@@ -72,13 +78,15 @@ class Server():
                     to_send = cmds.Commands(self).aval_games(req)
                 # req to join game
                 elif req[0] == "join_game":
-                    to_send = cmds.Commands(self).join_game(req)
+                    to_send = cmds.Commands(self).join_game(req,conn)
                 # ask to spec game
                 elif req[0] == "spec":
-                    to_send = cmds.Commands(self).spec_game(req)
+                    to_send = cmds.Commands(self).spec_game(req,conn)
                 # players makes a move
                 elif req[0] == "move":
                     to_send = cmds.Commands(self).move(req)
+                    sendall = True
+                    g : game.Game = self.games[req["data"]["game_id"]]
                 # respond to client/s
                 if not sendall: conn.send(cp.encrypt(to_send))
                 else:

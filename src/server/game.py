@@ -10,7 +10,7 @@ class Game():
         self.turn = 0
         self.count_moves = 0
 
-    def add_player(self,player, username: str):
+    def add_player(self, player, username: str):
         self.usernames.append(username)
         self.players[username] = player
 

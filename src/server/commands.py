@@ -1,10 +1,18 @@
 import game
 import json
 import time
-import src.server.server as srv
 from argon2 import PasswordHasher
+from pathlib import Path
+import sys
+
+path_root = Path(__file__).parents[2]
+sys.path.append(str(path_root))
+
+import src.server.server as srv
 
 USERS_F = "users.json"
+LEADERB = "leaderboard.json"
+
 class Data():
     def __init__(self, status: str, message: str, data: dict=None):
         self.packet = {
@@ -23,17 +31,17 @@ class Commands():
         self.server = server
 
     # check if the db file is free to use
-    def is_data_hazard(self):
+    def is_data_hazard(self, file: str):
         for i in range(10):
-            if not self.server.data_hazard: return False
+            if not self.server.data_hazard[file]: return False
             time.sleep(0.05)
         return True
 
     # logs in the user
     def login(self,req):
-        if self.is_data_hazard: return Data("err", "db_busy").to_json()
+        if self.is_data_hazard("users"): return Data("err", "db_busy").to_json()
 
-        self.server.data_hazard = True
+        self.server.data_hazard["users"] = True
 
         ph = PasswordHasher()
         username = req[1]
@@ -52,14 +60,14 @@ class Commands():
             d = Data("err", "cannot open db")
         finally:
             f.close()
-            self.server.data_hazard = False
+            self.server.data_hazard["users"] = False
             return d.to_json()
 
     # signs up new user, makes sure username is unique
     def signup(self,req):
-        if self.is_data_hazard: return Data("err", "db_busy").to_json()
+        if self.is_data_hazard("users"): return Data("err", "db_busy").to_json()
 
-        self.server.data_hazard = True
+        self.server.data_hazard["users"] = True
 
         ph = PasswordHasher()
         username = req[1]
@@ -78,31 +86,52 @@ class Commands():
             d = Data("err", "cannot open db")
         finally:
             f.close()
-            self.server.data_hazard = False
+            self.server.data_hazard["users"] = False
             return d.to_json()
 
 
     def new_game(self,req):
-        x = req[1]
+        g = game.Game(req["data"]["num_players"], len(self.server.games))
+        self.server.games.append(g)
+
+        return Data("sec", "cret_game", {"game_id": g.id})
         
 
-    def join_game(conn, g: game.Game):
+    def join_game(self, req, conn, username):
+        g : game.Game = self.server.games[req["data"]["game_id"]]
         if g.max_players == len(g.max_players):
-            return "full"
+            d = Data("err", "full_game")
         else:
-            g.add_player(conn)
-            return "cnctd"
+            g.add_player(conn, username)
+            d = Data("suc", "joined", {"game_id": g.id, "symbol": g.usernames.index(username)})
+        return d.to_json()
 
-    def spec_game(self, req):
-        return 0
+    def spec_game(self, req, conn):
+        g : game.Game = self.server.games[req["data"]["game_id"]]
+        g.add_spectator(conn)
+        return Data("suc", "specs", {"game_id": g.id}).to_json
 
-    def aval_games(games: list[game.Game]):
+    def aval_games(self):
         data = {}
-        for g in games:
+        g : game.Game
+        for g in self.server.games:
             data[g.id] = {"max_plyr": g.max_players, "num_plyr": len(g.players), "num_scep": len(g.spectators)}
+        return Data("info", "aval_games", data).to_json()
 
-    def leaderboard():
-        return 1
-    
-    def move(self, req):
+    def leaderboard(self):
+        if self.is_data_hazard("leader") : return Data("err", "db_busy").to_json()
+        self.server.data_hazard["leader"] = True
+        try:
+            f = open(LEADERB)
+            d = f.readline()
+        except:
+            d = Data("err", "cannot open lb")
+        finally:
+            self.server.data_hazard["leader"] = False
+            return d.to_json()
+        
+    def move(self, req, username):
+        g : game.Game = self.server.games[req["data"]["game_id"]]
+        if g.turn is not g.usernames.index(username) : return Data("err", "not_turn").to_json()
+        g.move(req["data"]["i"], req["data"]["j"])
         return 0
