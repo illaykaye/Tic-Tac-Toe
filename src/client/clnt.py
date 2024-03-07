@@ -1,6 +1,7 @@
 import socket
 import json
 import time
+import src.crypto.crypto as cp
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 5000  # The port used by the server
@@ -17,8 +18,7 @@ class Client():
     def start_client(self):
         self.client_socket.connect((HOST, PORT))  # Connecting to server's socket
         print("Connecting")
-        self.token = self.client_socket.recv(4096)
-        self.token = self.token.decode(FORMAT)
+        self.token = cp.decrypt(self.client_socket.recv(1024))
         print(self.token)
 
     def close_client(self):
@@ -30,12 +30,13 @@ class Client():
             data = data + " {} {}".format(self.token, req, argv[0], argv[1], argv[2])
         elif req in ["login", "signup"]:
             data = data + " {} {}".format(self.token, req, argv[0], argv[1])
-        elif req == ["new", "join", "spec"]: 
+        elif req in ["new", "join", "spec"]: 
             data = data + " {} {}".format(self.token, req, argv[0]) # num players / game id
-        
-        self.client_socket.send(data.encode(FORMAT))
+        elif req in ["lb", "aval"]:
+            data = data + ""
+        self.client_socket.send(cp.encrypt(data))
         time.sleep(0.05)
-        self.recvd_data = self.client_socket.recv(4096).decode(FORMAT)
+        self.recvd_data = cp.decrypt(self.client_socket.recv(4096))
    
 
     def leaderboard(self):

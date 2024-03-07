@@ -18,8 +18,11 @@ join game - "{token} {"login"} {game_id}"
     
 spec game - "{token} {"spec"} {game_id}"
 
-board - "{token} {"board"}"
+board - "{token} {"board"} {game_id}"
 
-new game - "{token} {"new"}"
+new game - "{token} {"new"} {x}"
 aval games - "{token} {"aval"}"
 exit game  - "{token} {"exit"}"
+
+users file
+leaderboard file
