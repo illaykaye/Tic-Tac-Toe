@@ -1,17 +1,16 @@
 import game
 import json
 import time
+import datetime
 from argon2 import PasswordHasher
+import jwt
 from pathlib import Path
 import sys
 
-path_root = Path(__file__).parents[2]
-sys.path.append(str(path_root))
-
-import src.server.server as srv
-
-USERS_F = "users.json"
-LEADERB = "leaderboard.json"
+db_folder = Path(__file__).parents[2]
+USERS_F = db_folder / "users.json"
+LEADERB = db_folder / "leaderboard.json"
+SECRET_KEY = "yeehaw"
 
 class Data():
     def __init__(self, status: str, message: str, data: dict=None):
@@ -19,7 +18,6 @@ class Data():
             "status": status,
             "msg": message,
             "data": data,
-            "timestamp": time.time()
         }
         if data is None: self.packet.pop("data")
     
@@ -27,7 +25,7 @@ class Data():
         return json.dumps(self.packet)
 
 class Commands():
-    def __init__(self, server: srv.Server):
+    def __init__(self, server):
         self.server = server
 
     # check if the db file is free to use
@@ -36,6 +34,21 @@ class Commands():
             if not self.server.data_hazard[file]: return False
             time.sleep(0.05)
         return True
+
+    def generate_token(self,username):
+        payload = {
+            "username": username,
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        }
+        return jwt.encode(payload, SECRET_KEY, algorithms="HS256")
+
+    def valid_token(self,token):
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+            username = payload['username']
+            if username in list(map(lambda client: client.username, self.server.connections.values())): return True
+        except jwt.InvalidTokenError:
+            return False
 
     # logs in the user
     def login(self,req):
@@ -53,7 +66,7 @@ class Commands():
                 data = json.loads(line)
                 if username == data["username"]:
                     if ph.verify(data["password"],password):
-                        d = Data("suc", "logged", {"username": username})
+                        d = Data("suc", "logged", {"username": username, "token": self.generate_token(username)})
                     else: break
             d = Data("err", "usr_pswd_incrr")
         except:
