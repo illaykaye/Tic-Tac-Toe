@@ -103,11 +103,11 @@ class Commands():
             return d.to_json()
 
 
-    def new_game(self,req):
+    def new_game(self,req,username):
         g = game.Game(req["data"]["num_players"], len(self.server.games))
         self.server.games.append(g)
 
-        return Data("sec", "cret_game", {"game_id": g.id})
+        return self.join_game(self,Data("ok","insrv",{"game_id": g.id}),username)
         
 
     def join_game(self, req, conn, username):
@@ -129,14 +129,15 @@ class Commands():
         g : game.Game
         for g in self.server.games:
             data[g.id] = {"max_plyr": g.max_players, "num_plyr": len(g.players), "num_scep": len(g.spectators)}
-        return Data("info", "aval_games", data).to_json()
+        return Data("info", "aval", data).to_json()
 
     def leaderboard(self):
         if self.is_data_hazard("leader") : return Data("err", "db_busy").to_json()
         self.server.data_hazard["leader"] = True
         try:
             f = open(LEADERB)
-            d = f.readline()
+            data = json.loads(f.readline())
+            d = Data("info", "lb", data)
         except:
             d = Data("err", "cannot open lb")
         finally:

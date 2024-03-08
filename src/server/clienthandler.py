@@ -12,22 +12,24 @@ import src.crypto.crypto as cp
 import src.server.game as game
 
 class ClientHandler(threading.Thread):
-    def __init__(self, server ,conn: socket.socket, addr):
+    def __init__(self, server, conn: socket.socket, addr):
         super().__init__()
         self.server = server
         self.conn : socket.socket = conn
         self.addr = addr
         self.username = ''
+        print("client handler init")
 
     def run(self):
         print('[CLIENT CONNECTED] on address: ', self.addr)  # Printing connection address
-        self.server.connections[self.addr] = self.conn
 
-        self.conn.send(cp.encrypt(cmds.Data("suc", "connected")))
+        try:
+            self.server.connections[self.addr] = self.conn
+            print("connected")
+            self.conn.send(cp.encrypt(cmds.Data("suc", "connected").to_json()))
 
-        while True:
-            try:
-                recv = cp.decrypt(conn.recv(4096))
+            while True:
+                recv = cp.decrypt(self.conn.recv(4096))
                 packet = json.loads(recv)
                 cmd = cmds.Commands(self.server)
                 req = packet["req"]
@@ -44,16 +46,16 @@ class ClientHandler(threading.Thread):
                     to_send = cmd.signup(req)
                 # new game
                 elif req == "new_game":
-                    to_send = cmd.new_game(req)
+                    to_send = cmd.new_game(req,self.conn,self.username)
                 # list available games
                 elif req[0] == "aval_games":
                     to_send = cmd.aval_games(req)
                 # req to join game
                 elif req[0] == "join_game":
-                    to_send = cmd.join_game(req,conn)
+                    to_send = cmd.join_game(req,self.conn,self.username)
                 # ask to spec game
                 elif req[0] == "spec":
-                    to_send = cmd.spec_game(req,conn)
+                    to_send = cmd.spec_game(req,self.conn)
                 # players makes a move
                 elif req[0] == "move":
                     to_send = cmd.move(req)
@@ -66,5 +68,11 @@ class ClientHandler(threading.Thread):
                     all.append(g.spectators)
                     for conn in all:
                         conn.send(cp.encrypt(to_send))
-            except:
-                print("[CLIENT CONNECTION INTERRUPTED] on address: ", self.addr)
+        except socket.timeout:
+            print("Connection with {} timed out.".format(self.addr))
+        except Exception as e:
+            print("An error occured with {}: {}".format(self.addr, e))
+        finally:
+            self.server.connections.pop(self.addr)
+            self.conn.close()
+            print("Connection with {} closed.".format(self.addr))
