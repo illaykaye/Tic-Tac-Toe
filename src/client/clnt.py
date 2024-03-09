@@ -16,7 +16,7 @@ ADDR = (HOST, PORT)  # Creating a tuple of IP+PORT
 
 class Client():
     def __init__(self, callback):
-        IP = socket.gethostbyname(socket.gethostname())
+        self.IP = socket.gethostbyname(socket.gethostname())
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.callback = callback
         self.token = 0
@@ -48,9 +48,9 @@ class Client():
             packet["data"] = {"num_players", argv[0]} # arg - num_players
         elif req in ["lb", "aval", "exit"]:
             packet.pop("data") # no args or data needed
-        print(packet)
         self.client_socket.send(cp.encrypt(json.dumps(packet,default=list)))
-        time.sleep(0.05)
-        response = cp.decrypt(self.client_socket.recv(4096))
+        time.sleep(2)
+        print("sleeping")
+        response = json.loads(cp.decrypt(self.client_socket.recv(4096)))
         print(response)
         self.callback(response)

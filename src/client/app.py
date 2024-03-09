@@ -68,27 +68,25 @@ class App():
     def login_page(self):
         username = tk.StringVar()
         password = tk.StringVar()
-        self.new_window(300,120)
+        self.new_window(360,120)
         ttk.Label(self.window, text="Username:", font=("ubuntu, 12")).place(x=40, y=10)
         ttk.Entry(self.window, textvariable=username).place(x=130,y=10)
         ttk.Label(self.window, text="Password:", font=("ubuntu, 12")).place(x=40, y=40)
         ttk.Entry(self.window, textvariable=password).place(x=130,y=40)
         ttk.Button(self.window,text="Back", command=self.start_page).place(x=70,y=70)
-        req = partial(self.clnt.request,username.get(),password.get())
-        ttk.Button(self.window, text="Login", command=req).place(x=160,y=70)
+        ttk.Button(self.window, text="Login", command=lambda: self.clnt.request("signup", username.get(), password.get())).place(x=160,y=70)
         self.window.mainloop()
         
     def signup_page(self):
+        self.new_window(360,120)
         username = tk.StringVar()
         password = tk.StringVar()
-        self.new_window(300,120)
         ttk.Label(self.window, text="Username:", font=("ubuntu, 12")).place(x=40, y=10)
-        ttk.Entry(self.window, textvariable=username).place(x=130,y=10)
+        ttk.Entry(self.window, textvariable=username).place(x=130,y=10) # username entry
         ttk.Label(self.window, text="Password:", font=("ubuntu, 12")).place(x=40, y=40)
-        ttk.Entry(self.window, textvariable=password).place(x=130,y=40)
+        ttk.Entry(self.window, textvariable=password,show="*").place(x=130,y=40) # password entry
         ttk.Button(self.window,text="Back",command=self.start_page).place(x=70,y=70)
-        req = partial(self.clnt.request,username.get(),password.get())
-        ttk.Button(self.window, text="Sign up",command=req).place(x=160,y=70)
+        ttk.Button(self.window, text="Sign up",command=lambda: self.clnt.request("signup", username.get(), password.get())).place(x=160,y=70)
 
         self.window.mainloop()
 
@@ -112,9 +110,9 @@ class App():
     def new_game_page(self):
         self.new_window()
         ttk.Label(self.window, text="Choose number of players:", font=("ubuntu",10)).pack(pady=2,expand=True)
-        ttk.Button(self.window, text="2", command=self.clnt.request("new",2)).pack(pady=3,expand=True)
-        ttk.Button(self.window,text="3", command=self.clnt.request("new",3)).pack(pady=1)
-        ttk.Button(self.window, text="4", command=self.clnt.request("new",4)).pack(pady=1,expand=True)
+        ttk.Button(self.window, text="2", command=lambda: self.clnt.request("new",2)).pack(pady=3,expand=True)
+        ttk.Button(self.window,text="3", command=lambda: self.clnt.request("new",3)).pack(pady=1)
+        ttk.Button(self.window, text="4", command=lambda: self.clnt.request("new",4)).pack(pady=1,expand=True)
 
     def available_games_page(self):
         return 0

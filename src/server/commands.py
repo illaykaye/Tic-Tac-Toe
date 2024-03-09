@@ -8,8 +8,8 @@ from pathlib import Path
 import sys
 
 db_folder = Path(__file__).parents[2]
-USERS_F = db_folder / "users.json"
-LEADERB = db_folder / "leaderboard.json"
+USERS_F = db_folder / "db" / "users.json"
+LEADERB = db_folder / "db" /"leaderboard.json"
 SECRET_KEY = "yeehaw"
 
 class Data():
@@ -51,14 +51,14 @@ class Commands():
             return False
 
     # logs in the user
-    def login(self,req):
+    def login(self,data):
         if self.is_data_hazard("users"): return Data("err", "db_busy").to_json()
 
         self.server.data_hazard["users"] = True
-
+        d = Data("err", "err")
         ph = PasswordHasher()
-        username = req[1]
-        password = req[2]
+        username = data["username"]
+        password = data["password"]
 
         try:
             f = open(USERS_F, 'r')
@@ -77,41 +77,44 @@ class Commands():
             return d.to_json()
 
     # signs up new user, makes sure username is unique
-    def signup(self,req):
+    def signup(self,data):
         if self.is_data_hazard("users"): return Data("err", "db_busy").to_json()
-
+        print(USERS_F)
         self.server.data_hazard["users"] = True
-
+        d : Data = Data("ok", "ok")
         ph = PasswordHasher()
-        username = req[1]
-        password = req[2]
-
+        username = data["username"]
+        password = data["password"]
+        print(data)
         try:
-            f = open(USERS_F, 'a+')
+            f = open(USERS_F, 'a')
             for line in f:
-                data = json.loads(line)
-                if data["username"] == username: d = Data("err", "usr_taken")
+                #existing_user = json.loads(line)
+                #if existing["username"] == username: d = Data("err", "usr_taken")
                 stats = {"wins": 0, "loses": 0, "draws": 0}
                 user = {"username": username, "password": ph.hash(password), "stats": stats}
-                f.write(json.dumps(user)+'\n')
-                d = Data("suc", "sign_up")     
-        except:
-            d = Data("err", "cannot open db")
+                print("signing up")
+                # json.dumps(user,default=list)+'\n'
+                f.write("ok\n")
+                d = Data("suc", "sign_up")
+        except Exception as e:
+            d = Data("err", e).to_json()
         finally:
             f.close()
             self.server.data_hazard["users"] = False
             return d.to_json()
 
 
-    def new_game(self,req,username):
-        g = game.Game(req["data"]["num_players"], len(self.server.games))
+    def new_game(self,data,username):
+        g = game.Game(data["num_players"], len(self.server.games))
         self.server.games.append(g)
 
         return self.join_game(self,Data("ok","insrv",{"game_id": g.id}),username)
         
 
-    def join_game(self, req, conn, username):
-        g : game.Game = self.server.games[req["data"]["game_id"]]
+    def join_game(self, data, conn, username):
+        g : game.Game = self.server.games[data["game_id"]]
+        d = ''
         if g.max_players == len(g.max_players):
             d = Data("err", "full_game")
         else:
@@ -119,10 +122,10 @@ class Commands():
             d = Data("suc", "joined", {"game_id": g.id, "symbol": g.usernames.index(username)})
         return d.to_json()
 
-    def spec_game(self, req, conn):
-        g : game.Game = self.server.games[req["data"]["game_id"]]
+    def spec_game(self, data, conn):
+        g : game.Game = self.server.games[data["game_id"]]
         g.add_spectator(conn)
-        return Data("suc", "specs", {"game_id": g.id}).to_json
+        return Data("suc", "specs", {"game_id": g.id}).to_json()
 
     def aval_games(self):
         data = {}
@@ -144,8 +147,8 @@ class Commands():
             self.server.data_hazard["leader"] = False
             return d.to_json()
         
-    def move(self, req, username):
-        g : game.Game = self.server.games[req["data"]["game_id"]]
+    def move(self, data, username):
+        g : game.Game = self.server.games[data["game_id"]]
         if g.turn is not g.usernames.index(username) : return Data("err", "not_turn").to_json()
-        g.move(req["data"]["i"], req["data"]["j"])
+        g.move(data["i"], data["j"])
         return 0
