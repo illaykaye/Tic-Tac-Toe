@@ -5,7 +5,7 @@ import datetime
 from argon2 import PasswordHasher
 import jwt
 from pathlib import Path
-import sys
+import uuid
 
 db_folder = Path(__file__).parents[2]
 USERS_F = db_folder / "db" / "users.json"
@@ -29,9 +29,9 @@ class Commands():
         self.server = server
 
     # check if the db file is free to use
-    def is_data_hazard(self, file: str):
+    def is_data_hazard(self):
         for i in range(10):
-            if not self.server.data_hazard[file]: return False
+            if not self.server.data_hazard: return False
             time.sleep(0.05)
         return True
 
@@ -41,85 +41,103 @@ class Commands():
             "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
         }
         return jwt.encode(payload, SECRET_KEY, algorithms="HS256")
-
+    '''
     def valid_token(self,token):
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
             username = payload['username']
             if username in list(map(lambda client: client.username, self.server.connections.values())): return True
         except jwt.InvalidTokenError:
-            return False
-
+            return True
+    '''
     # logs in the user
     def login(self,data):
-        if self.is_data_hazard("users"): return Data("err", "db_busy").to_json()
+        if self.is_data_hazard(): return Data("err", "db_busy").to_json()
 
-        self.server.data_hazard["users"] = True
-        d = Data("err", "err")
+        self.server.data_hazard = True
+        d = Data("ok", "ok")
         ph = PasswordHasher()
         username = data["username"]
         password = data["password"]
 
         try:
-            f = open(USERS_F, 'r')
-            for line in f:
-                data = json.loads(line)
-                if username == data["username"]:
-                    if ph.verify(data["password"],password):
-                        d = Data("suc", "logged", {"username": username, "token": self.generate_token(username)})
-                    else: break
-            d = Data("err", "usr_pswd_incrr")
+            with open(USERS_F, 'r') as f:
+                db = json.load(f)
+            for user in db["users"]:
+                if username == user["username"]:
+                    print("found user")
+                    self.username = username
+                    try:
+                        #if ph.verify(user["password"],password):
+                        if user["password"] == password:
+                            d = Data("suc", "logged", {"username": username, "token": 1})
+                        else: 
+                            d = Data("err", "username or password incorrect")
+                            return
+                    except Exception:
+                        d = Data("err", "password incorrect")
         except:
             d = Data("err", "cannot open db")
         finally:
-            f.close()
-            self.server.data_hazard["users"] = False
+            self.server.data_hazard = False
             return d.to_json()
 
     # signs up new user, makes sure username is unique
     def signup(self,data):
-        if self.is_data_hazard("users"): return Data("err", "db_busy").to_json()
+        if self.is_data_hazard(): return Data("err", "db_busy").to_json()
         print(USERS_F)
-        self.server.data_hazard["users"] = True
+        self.server.data_hazard = True
         d : Data = Data("ok", "ok")
         ph = PasswordHasher()
         username = data["username"]
         password = data["password"]
-        print(data)
         try:
-            f = open(USERS_F, 'a')
-            for line in f:
-                #existing_user = json.loads(line)
-                #if existing["username"] == username: d = Data("err", "usr_taken")
-                stats = {"wins": 0, "loses": 0, "draws": 0}
-                user = {"username": username, "password": ph.hash(password), "stats": stats}
-                print("signing up")
-                # json.dumps(user,default=list)+'\n'
-                f.write("ok\n")
-                d = Data("suc", "sign_up")
+            with open(USERS_F, "r") as f:
+                db = json.load(f)
+            print(db)
+            for user in db["users"]:
+                if user["username"] == username:
+                    d = Data("err", "username taken")
+                    return
+            stats = {"wins": 0, "loses": 0, "draws": 0}
+            print(password)
+            '''try:
+                hashps = ph.hash(password)
+            except:
+                d = Data("err", "error while signing up")
+                return'''
+            #print(type(hashps))
+            user = {"username": username, "password": password, "stats": stats}
+            db["users"].append(user)
+            with open(USERS_F, "w") as f:
+                f.seek(0)
+                json.dump(db, f, indent=4)
+                d = Data("suc", "signup", {"username": username})
         except Exception as e:
-            d = Data("err", e).to_json()
+            d = Data("err", e)
         finally:
-            f.close()
-            self.server.data_hazard["users"] = False
+            self.server.data_hazard = False
             return d.to_json()
+        
 
-
-    def new_game(self,data,username):
-        g = game.Game(data["num_players"], len(self.server.games))
-        self.server.games.append(g)
-
-        return self.join_game(self,Data("ok","insrv",{"game_id": g.id}),username)
+    def new_game(self, data, conn, username):
+        print("in new game")
+        g = game.Game(data["num_players"], int(uuid.uuid4()))
+        self.server.games[g.id] = g
+        print("created new game")
+        print(self.server.games)
+        #return self.join_game({"game_id": g.id}, conn, username)
+        return Data("suc", "new_game", {"game_id": g.id}).to_json()
         
 
     def join_game(self, data, conn, username):
         g : game.Game = self.server.games[data["game_id"]]
-        d = ''
-        if g.max_players == len(g.max_players):
+        d = Data("ok", "ok")
+        if g.max_players == len(g.players):
             d = Data("err", "full_game")
         else:
             g.add_player(conn, username)
-            d = Data("suc", "joined", {"game_id": g.id, "symbol": g.usernames.index(username)})
+            d = Data("suc", "joined", {"game_id": g.id, "symbol": 1})
         return d.to_json()
 
     def spec_game(self, data, conn):
@@ -130,21 +148,22 @@ class Commands():
     def aval_games(self):
         data = {}
         g : game.Game
-        for g in self.server.games:
-            data[g.id] = {"max_plyr": g.max_players, "num_plyr": len(g.players), "num_scep": len(g.spectators)}
+        for g in self.server.games.values():
+            data[g.id] = {"max_players": g.max_players, "num_players": len(g.players), "num_spec": len(g.spectators)}
         return Data("info", "aval", data).to_json()
 
     def leaderboard(self):
-        if self.is_data_hazard("leader") : return Data("err", "db_busy").to_json()
-        self.server.data_hazard["leader"] = True
+        if self.is_data_hazard() : return Data("err", "db_busy").to_json()
+        self.server.data_hazard = True
+        d = Data("ok", "ok")
         try:
-            f = open(LEADERB)
-            data = json.loads(f.readline())
-            d = Data("info", "lb", data)
+            with open(USERS_F, "r") as f:
+                db = json.load(f)
+            d = Data("info", "lb", db["leaderboard"])
         except:
-            d = Data("err", "cannot open lb")
+            d = Data("err", "cannot open db")
         finally:
-            self.server.data_hazard["leader"] = False
+            self.server.data_hazard = False
             return d.to_json()
         
     def move(self, data, username):

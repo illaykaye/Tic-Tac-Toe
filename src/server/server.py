@@ -19,9 +19,10 @@ class Server():
         self.port = port
         self.addr = (self.host, self.port)
 
-        self.data_hazard = {"users": False, "leader": False}
+        #self.data_hazard = {"users": False, "leader": False}
+        self.data_hazard = False
         self.connections = {}
-        self.games = []
+        self.games = {}
 
         self.IP = socket.gethostbyname(socket.gethostname())
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -18,7 +18,8 @@ class ClientHandler(threading.Thread):
         self.conn : socket.socket = conn
         self.addr = addr
         self.username = ''
-        print("client handler init")
+        self.in_game = False
+        self.game_id = -1
 
     def run(self):
         print('[CLIENT CONNECTED] on address: ', self.addr)  # Printing connection address
@@ -34,37 +35,45 @@ class ClientHandler(threading.Thread):
                 packet = json.loads(recv)
                 cmd = cmds.Commands(self.server)
                 req = packet["req"]
-                print(type(req))
                 sendall = False
-
+                print(packet)
                 # validate token (on login the client doesn't have token yet)
-                if req not in ["signup", "login"] and not cmd.valid_token(req["token"]):
-                    to_send = cmds.Data("err", "invalid_token")
+                '''if req not in ["signup", "login"] and not cmd.valid_token(req["token"]):
+                    to_send = cmds.Data("err", "invalid_token")'''
                 # login
+                if req == "exit":
+                    self.server.connections.pop(self.addr)
+                    if self.in_game:
+                        self.games[self.game_id].players.pop(self.username)
+                        self.games[self.game_id].usernames.remove(self.username)
                 elif req == "login":
                     to_send = cmd.login(packet["data"])
                 # sign up
                 elif req == "signup":
                     to_send = cmd.signup(packet["data"])
                 # new game
-                elif req == "new_game":
+                elif req == "new":
+                    print("new game")
                     to_send = cmd.new_game(packet["data"],self.conn,self.username)
                 # list available games
-                elif req[0] == "aval_games":
-                    to_send = cmd.aval_games(packet["data"])
+                elif req == "aval":
+                    to_send = cmd.aval_games()
+                elif req == "lb":
+                    print("leaderboard")
+                    to_send = cmd.leaderboard()
                 # req to join game
-                elif req[0] == "join_game":
+                elif req == "join":
                     to_send = cmd.join_game(packet["data"],self.conn,self.username)
                 # ask to spec game
-                elif req[0] == "spec":
+                elif req == "spec":
                     to_send = cmd.spec_game(packet["data"],self.conn)
                 # players makes a move
-                elif req[0] == "move":
+                elif req == "move":
                     to_send = cmd.move(req)
                     sendall = True
                     g : game.Game = self.server.games[req["data"]["game_id"]]
-                print(to_send)
                 # respond to client/s
+                print(to_send)
                 if not sendall: self.conn.send(cp.encrypt(to_send))
                 else:
                     all : list[socket.socket] = list(g.players.values()) 

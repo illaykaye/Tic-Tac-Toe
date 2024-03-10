@@ -1,1 +1,18 @@
-{"username": "ok", "password": 1234}
+{
+    "users": [
+        {
+            "username": "illay",
+            "password": "2011",
+            "stats": {
+                "wins": 0,
+                "loses": 0,
+                "draws": 0
+            }
+        }
+    ],
+    "leaderboard": {
+        "wins": {"username": "", "num": 0},
+        "loses": {"username": "", "num": 0},
+        "draws": {"username": "", "num": 0}
+    }
+}

@@ -20,6 +20,7 @@ class Client():
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.callback = callback
         self.token = 0
+        self.username = ''
         self.game_id = None
 
     def start_client(self):
@@ -45,12 +46,11 @@ class Client():
         elif req in ["join", "spec"]:
             packet["data"] = {"game_id", argv[0]} # arg - game_id
         elif req in ["new"]:
-            packet["data"] = {"num_players", argv[0]} # arg - num_players
+            packet["data"] = {"num_players": argv[0]} # arg - num_players
         elif req in ["lb", "aval", "exit"]:
             packet.pop("data") # no args or data needed
         self.client_socket.send(cp.encrypt(json.dumps(packet,default=list)))
-        time.sleep(2)
-        print("sleeping")
+        time.sleep(0.3)
         response = json.loads(cp.decrypt(self.client_socket.recv(4096)))
         print(response)
         self.callback(response)
