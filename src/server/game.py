@@ -2,44 +2,39 @@
 class Game():
     def __init__(self, x, id):
         self.id = id
-        self.board = [[0]*x for _ in range(x)]
+        self.grid = [[-1]*(x+1) for _ in range(x+1)]
         self.max_players = x
-        self.players = {}
-        self.usernames = []
+        self.players = []
         self.spectators = []
         self.turn = 0
         self.count_moves = 0
 
-    def add_player(self, player, username: str):
-        self.usernames.append(username)
-        self.players[username] = player
+    def add_player(self, conn, username: str):
+        self.players.append((conn, username))
 
     def add_spectator(self, spec):
         self.spectators.append(spec)
 
     def move(self,i,j):
-        self.board[i,j] = self.turn
+        self.grid[i,j] = self.turn
         self.count_moves += 1
         self.turn = (self.turn + 1) % len(self.players)
-
-        if self.count_moves == (self.max_players+1)**2: return self.end(-1)
-        elif self.check_win : return self.end(self.turn-1)
         
     def check_win(self,i,j):
         symbol = self.turn - 1
 
         # check row
         if j == 0:
-            row_opts = [self.board[i][0:2]]
+            row_opts = [self.grid[i][0:2]]
         elif j == self.max_players:
-            row_opts = [self.board[i][j-2:j]]
+            row_opts = [self.grid[i][j-2:j]]
         else:
             if self.max_players == 2:
-                row_opts = [self.board[i][0:2]]
+                row_opts = [self.grid[i][0:2]]
             elif self.max_players == 3:
-                row_opts = [self.board[i][k:k+2] for k in range(2)]
+                row_opts = [self.grid[i][k:k+2] for k in range(2)]
             else:
-                row_opts = [self.board[i][k:k+2] for k in range(3)]
+                row_opts = [self.grid[i][k:k+2] for k in range(3)]
                 if j == 1:
                     del row_opts[0]
                 elif j == 3:
@@ -51,16 +46,16 @@ class Game():
         
         # check column 
         if i == 0:
-            col_opts = [self.board[0:2][j]]
+            col_opts = [self.grid[0:2][j]]
         elif i == self.max_players:
-            col_opts = [self.board[i-2:i][j]]
+            col_opts = [self.grid[i-2:i][j]]
         else:
             if self.max_players == 2:
-                col_opts = [self.board[0:2][j]]
+                col_opts = [self.grid[0:2][j]]
             elif self.max_players == 3:
-                col_opts = [self.board[k:k+2][j] for k in range(2)]
+                col_opts = [self.grid[k:k+2][j] for k in range(2)]
             else:
-                col_opts = [self.board[k:k+2][j] for k in range(3)]
+                col_opts = [self.grid[k:k+2][j] for k in range(3)]
                 if i == 1:
                     del col_opts[0]
                 elif i == 3:
@@ -72,7 +67,15 @@ class Game():
 
         # check diaganols
         return False
-    
+    def complete_game(self):
+        return {
+            "game_id": self.id,
+            "grid": self.grid,
+            "max_players": self.max_players,
+            "num_players": len(self.players),
+            "players": [player[1] for player in self.players],
+            "symbol": len(self.players)-1
+        }
     def end(self, res):
         if res == -1:
             return "draw"

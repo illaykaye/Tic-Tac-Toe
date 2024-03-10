@@ -25,8 +25,9 @@ class Data():
         return json.dumps(self.packet)
 
 class Commands():
-    def __init__(self, server):
+    def __init__(self, client, server):
         self.server = server
+        self.client = client
 
     # check if the db file is free to use
     def is_data_hazard(self):
@@ -66,7 +67,7 @@ class Commands():
             for user in db["users"]:
                 if username == user["username"]:
                     print("found user")
-                    self.username = username
+                    self.client.username = username
                     try:
                         #if ph.verify(user["password"],password):
                         if user["password"] == password:
@@ -136,14 +137,16 @@ class Commands():
         if g.max_players == len(g.players):
             d = Data("err", "full_game")
         else:
+            print("adding player")
             g.add_player(conn, username)
-            d = Data("suc", "joined", {"game_id": g.id, "symbol": 1})
+            print(g.players)
+            d = Data("suc", "joined", g.complete_game())
         return d.to_json()
 
     def spec_game(self, data, conn):
         g : game.Game = self.server.games[data["game_id"]]
         g.add_spectator(conn)
-        return Data("suc", "specs", {"game_id": g.id}).to_json()
+        return Data("suc", "spec", g.complete_game()).to_json()
 
     def aval_games(self):
         data = {}
@@ -170,4 +173,15 @@ class Commands():
         g : game.Game = self.server.games[data["game_id"]]
         if g.turn is not g.usernames.index(username) : return Data("err", "not_turn").to_json()
         g.move(data["i"], data["j"])
-        return 0
+        d = Data("suc", "move", {"player": username, "i": data["i"], "j": data["j"]})
+        if g.count_moves == (g.max_players+1)**2:
+            self.server.sendall = True
+            d.packet["data"].pop("player")
+            return d.to_json()
+        elif g.check_win() : 
+            self.server.sendall = True
+            d.packet["msg"] = "end"
+            return d.to_json()
+        else:
+            self.server.sendrest = True
+            return d.to_json()

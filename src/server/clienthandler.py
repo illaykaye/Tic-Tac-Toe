@@ -20,6 +20,8 @@ class ClientHandler(threading.Thread):
         self.username = ''
         self.in_game = False
         self.game_id = -1
+        self.sendall = False
+        self.sendrest = False
 
     def run(self):
         print('[CLIENT CONNECTED] on address: ', self.addr)  # Printing connection address
@@ -33,9 +35,8 @@ class ClientHandler(threading.Thread):
                 recv = cp.decrypt(self.conn.recv(4096))
                 print(recv)
                 packet = json.loads(recv)
-                cmd = cmds.Commands(self.server)
+                cmd = cmds.Commands(self, self.server)
                 req = packet["req"]
-                sendall = False
                 print(packet)
                 # validate token (on login the client doesn't have token yet)
                 '''if req not in ["signup", "login"] and not cmd.valid_token(req["token"]):
@@ -70,16 +71,19 @@ class ClientHandler(threading.Thread):
                 # players makes a move
                 elif req == "move":
                     to_send = cmd.move(req)
-                    sendall = True
                     g : game.Game = self.server.games[req["data"]["game_id"]]
                 # respond to client/s
                 print(to_send)
-                if not sendall: self.conn.send(cp.encrypt(to_send))
-                else:
-                    all : list[socket.socket] = list(g.players.values()) 
+                if self.sendall or self.sendrest:
+                    all : list[socket.socket] = [player[0] for player in g.players]
                     all.append(g.spectators)
+                    if self.sendrest : all.remove(self.conn)
                     for conn in all:
                         conn.send(cp.encrypt(to_send))
+                else:
+                    self.conn.send(cp.encrypt(to_send))
+                self.sendall = False
+                self.sendrest = False
         except socket.timeout:
             print("Connection with {} timed out.".format(self.addr))
         except Exception as e:

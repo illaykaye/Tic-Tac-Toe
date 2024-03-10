@@ -42,6 +42,7 @@ class Server():
             #thread.start()
             client_handler = ch.ClientHandler(self, connection, address)
             client_handler.start()
+            print(self.connections)
 
 if __name__ == '__main__':
     server = Server(HOST, PORT)

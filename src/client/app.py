@@ -22,10 +22,9 @@ class App():
                 self.main_page()
             elif res["msg"] == "signup":
                 self.start_page()
-            elif res["msg"] in ["joined"]:
+            elif res["msg"] in ["joined", "spec"]:
+                self.clnt.game_id = res["data"]["game_id"]
                 self.game(res)
-            elif res["msg"] == "spec":
-                self.game(res,spec=True)
         elif res["status"] == "info":
             if res["msg"] == "aval":
                 self.available_games_page(res["data"])
@@ -38,8 +37,10 @@ class App():
         self.window.title("Tic Tac Toe")
         self.window.geometry('{}x{}'.format(w,l))
         self.window.resizable(False, False)
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def exit(self):
+        self.on_closing()
         self.window.destroy()
         self.window.quit()
 
@@ -112,25 +113,97 @@ class App():
 
 
     def available_games_page(self, data):
-        self.reset_window()
+        self.reset_window(500,400)
         ttk.Label(self.window, text="Available Games", font=("ubuntu", 16)).pack(pady=3)
         count = 1
+        frame = tk.Frame(self.window)
+        if len(data) == 0:
+            frame.pack()
+            ttk.Label(frame, text="No games available").grid(row=0, column=0, columnspan=1)
+            count += 1
         for game_id, game in data.items():
             game_info = f"Game: {count}, Max Players: {game['max_players']}, Players in Game: {game['num_players']}, Spectators: {game["num_spec"]}"
-            if game["num_players"] == game["max_players"]:
+            if game["num_players"] < game["max_players"]:
                 button_text = "Join"
+                state = tk.NORMAL
                 command = lambda: self.clnt.request("join", game_id)
             else:
                 button_text = "Full"
                 command = None
-            ttk.Label(self.window, text=game_info).pack()
-            ttk.Button(self.window, text=button_text).pack()
+                state = tk.DISABLED
+            
+            frame.pack()
+
+            label = tk.Label(frame, text=game_info)
+            label.grid(row=count-1, column=0, padx=5, pady=5)
+
+            join_button = tk.Button(frame, text=button_text, command=command, state=state)
+            join_button.grid(row=count-1, column=1, padx=5, pady=5)
+
+            join_button = tk.Button(frame, text="Spectate", command=lambda: self.clnt.request("spec", game_id))
+            join_button.grid(row=count-1, column=2, padx=5, pady=5)
+
+            count += 1
             
     
-        ttk.Button(self.window,text="Back", command=self.main_page).pack(tk.BOTTOM)
+        ttk.Button(frame,text="Back", command=self.main_page).grid(row=count-1, column=0, columnspan=3, padx=5, pady=5)
 
 
-    def game(self,res,spec=False):
-        return 0
+    def game(self,data):
+        self.window.destroy()
+        self.window = TicTacToeGame(data, self)
+
+    def on_closing(self):
+        self.clnt.request("exit")
+    
+class TicTacToeGame(tk.Tk):
+    
+    def __init__(self, res, app: App):
+        super().__init__()
+        self.symbols = ['x','○','△','□']
+        self.max_players = res["data"]["max_players"]
+        self.num_players = res["data"]["num_players"]
+        self.board = res["data"]["grid"]
+        self.title_label = tk.Label(self, text="Tic Tac Toe", font=('Arial', 24, 'bold'))
+        self.title_label.grid(row=0, columnspan=self.max_players+2)
+        self.title("Tic Tac Toe")
+        self.spec = True if res["msg"] == "spec" else False
+        self.current_player = 0
+        self.player_names = res["data"]["players"]
+        self.app = app
+        self.game_id = res["data"]["game_id"]
+        self.timer_labels = []
+        self.symbol = res["data"]["symbol"] if self.spec is False else None 
+        self.create_widgets()
+
+    def create_widgets(self):
+        # Tic Tac Toe grid
+        state = tk.DISABLED if self.spec else tk.NORMAL
+        self.tic_tac_toe_grid = [[None for _ in range(self.max_players+1)] for _ in range(self.max_players+1)]
+        for i in range(self.max_players+1):
+            for j in range(self.max_players+1):
+                sym = " " if self.board[i][j] != -1 else self.symbols[self.board[i][j]]
+                self.tic_tac_toe_grid[i][j] = tk.Button(self, text=sym, font=('Arial', 20), command=lambda: self.move(i,j), width=5, height=2, state=state)
+                self.tic_tac_toe_grid[i][j].grid(row=i+1, column=j)
+
+        # Player list
+        self.player_labels = []
+        for i in range(self.num_players):
+            player_name = tk.Label(self, text=self.player_names[i],font=('Helvetica', 16))
+            player_name.grid(row=i+1, column=self.max_players+2)
+            self.player_labels.append(player_name)
+        ttk.Button(self, text="Exit Game", command=self.exit_game).grid(row=self.max_players+2,column=0,columnspan=self.max_players+2)
+    
+    def player_added(self, data):
+        player_name = ttk.Label(self, text=data["username"])
+        player_name.grid(row=self.num_players+1, column=self.max_players+1)
+        self.player_labels.append(data["username"])
+    
+    def move(self,i,j):
+        self.tic_tac_toe_grid[i][j].config(text=self.symbols[self.symbol],state=tk.DISABLED)
+        self.app.clnt.request("move", i, j)
+    def exit_game(self):
+        mode = "spec" if self.spec else "player"
+        self.app.clnt.request("remove",mode, self.game_id)
 if __name__ == "__main__":
     game = App()
