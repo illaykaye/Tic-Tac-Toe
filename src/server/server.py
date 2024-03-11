@@ -3,7 +3,7 @@ import threading
 import clienthandler as ch
 from pathlib import Path
 import sys
-
+import os
 path_root = Path(__file__).parents[1]
 sys.path.append(str(path_root))
 
@@ -46,7 +46,7 @@ class Server():
 
 if __name__ == '__main__':
     server = Server(HOST, PORT)
-    
+    print(f"Process ID: {os.getpid()}")
     print("[STARTING] server is starting...")
     server.start_server()
 

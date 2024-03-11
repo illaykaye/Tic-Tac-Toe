@@ -64,6 +64,8 @@ class Commands():
         try:
             with open(USERS_F, 'r') as f:
                 db = json.load(f)
+            if len(db["users"]) == 0:
+                d = Data("err", "no such user exists")
             for user in db["users"]:
                 if username == user["username"]:
                     print("found user")
@@ -145,13 +147,13 @@ class Commands():
         else:
             g.add_player(conn, username)
             self.client.broadcast = True
-            return (Data("suc", "user_joined", {"username": username}).to_json(), Data("suc", "joined", g.complete_game()).to_json(), g.all_clients().remove(self.client.conn))
+            return (Data("game", "user", {"username": username}).to_json(), Data("game", "joined", g.complete_game()).to_json(), g.all_clients().remove(self.client.conn))
         
 
     def spec_game(self, data, conn):
         g : game.Game = self.server.games[data["game_id"]]
         g.add_spectator(conn)
-        return Data("suc", "spec", g.complete_game()).to_json()
+        return Data("game", "spec", g.complete_game()).to_json()
 
     def exit_game(self, data, conn):
         g : game.Game = self.server.games[data["game_id"]]
@@ -161,7 +163,7 @@ class Commands():
         else:
             self.client.in_game = False
             self.client.broadcast = True
-            return (Data("suc", "user_left_game", {"username": self.client.username}).to_json(), g.all_clients())
+            return (Data("game", "user_left_game", {"username": self.client.username}).to_json(), g.all_clients())
 
 
     def aval_games(self):
@@ -189,7 +191,7 @@ class Commands():
         g : game.Game = self.server.games[data["game_id"]]
         #if g.players[g.turn][1] != username: return Data("err", "not_turn").to_json()
         g.move(data["i"], data["j"])
-        d = Data("suc", "move", {"player": username, "i": data["i"], "j": data["j"]})
+        d = Data("game", "move", {"player": username, "i": data["i"], "j": data["j"]})
         if g.count_moves == (g.max_players+1)**2:
             self.server.sendall = True
             d.packet["data"].pop("player")

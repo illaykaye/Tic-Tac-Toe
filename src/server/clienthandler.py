@@ -27,7 +27,6 @@ class ClientHandler(threading.Thread):
 
         try:
             self.server.connections[self.addr] = self.conn
-            print("connected")
             self.conn.send(cp.encrypt(cmds.Data("suc", "connected").to_json()))
 
             while True:

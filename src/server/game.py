@@ -4,13 +4,16 @@ class Game():
         self.id = id
         self.grid = [[-1]*(x+1) for _ in range(x+1)]
         self.max_players = x
+        self.num_players = 0
         self.players = []
         self.spectators = []
-        self.turn = 0
+        self.current_player = 0
+        self.started = False
         self.count_moves = 0
 
     def add_player(self, conn, username: str):
         self.players.append((conn, username))
+        self.num_players += 1
 
     def add_spectator(self, conn):
         self.spectators.append(conn)
@@ -21,12 +24,12 @@ class Game():
             self.players = list(filter(lambda tup: tup[1] != username, self.players))
             
     def move(self,i,j):
-        self.grid[i,j] = self.turn
+        self.grid[i,j] = self.current_player
         self.count_moves += 1
-        self.turn = (self.turn + 1) % len(self.players)
+        self.current_player = (self.current_player + 1) % len(self.players)
         
     def check_win(self,i,j):
-        symbol = self.turn - 1
+        symbol = self.current_player - 1
 
         # check row
         if j == 0:
@@ -77,11 +80,12 @@ class Game():
     def complete_game(self):
         return {
             "game_id": self.id,
-            "grid": self.grid,
+            "started": self.started,
             "max_players": self.max_players,
-            "num_players": len(self.players),
+            "num_players": self.num_players,
             "players": [player[1] for player in self.players],
-            "symbol": len(self.players)-1
+            "current_player": self.current_player,
+            "grid": self.grid
         }
     def end(self, res):
         if res == -1:

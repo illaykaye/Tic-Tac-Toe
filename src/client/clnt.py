@@ -33,6 +33,11 @@ class Client():
     def close_client(self):
         self.client_socket.close()
 
+    def listen(self):
+        response = json.loads(cp.decrypt(self.client_socket.recv(4096)))
+        print(response)
+        self.callback(response)
+
     def request(self,req, *argv):
         packet = {
             "token": self.token,

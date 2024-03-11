@@ -10,17 +10,8 @@
             }
         },
         {
-            "username": "hello",
-            "password": "1234",
-            "stats": {
-                "wins": 0,
-                "loses": 0,
-                "draws": 0
-            }
-        },
-        {
             "username": "okok",
-            "password": "2011",
+            "password": "1234",
             "stats": {
                 "wins": 0,
                 "loses": 0,
