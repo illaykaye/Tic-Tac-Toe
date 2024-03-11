@@ -43,6 +43,8 @@ class Client():
             packet["data"] = {"game_id": self.game_id, "i": argv[0], "j": argv[1]}
         elif req in ["login", "signup"]:
             packet["data"] = {"username": argv[0], "password": argv[1]}
+        elif req in ["exit_game"]:
+            packet["data"] = {"mode": argv[0], "game_id": argv[1]}
         elif req in ["join", "spec"]:
             packet["data"] = {"game_id": int(argv[0])} # arg - game_id
         elif req in ["new"]:

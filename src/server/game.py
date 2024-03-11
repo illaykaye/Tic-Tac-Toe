@@ -12,9 +12,14 @@ class Game():
     def add_player(self, conn, username: str):
         self.players.append((conn, username))
 
-    def add_spectator(self, spec):
-        self.spectators.append(spec)
+    def add_spectator(self, conn):
+        self.spectators.append(conn)
 
+    def remove_player(self, conn, spec, username=None):
+        if spec: self.spectators.remove(conn)
+        else:
+            self.players = list(filter(lambda tup: tup[1] != username, self.players))
+            
     def move(self,i,j):
         self.grid[i,j] = self.turn
         self.count_moves += 1
@@ -67,6 +72,8 @@ class Game():
 
         # check diaganols
         return False
+    def all_clients(self):
+        return [player[0] for player in self.players] + self.spectators
     def complete_game(self):
         return {
             "game_id": self.id,

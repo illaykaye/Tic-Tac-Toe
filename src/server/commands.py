@@ -130,23 +130,39 @@ class Commands():
         #return self.join_game({"game_id": g.id}, conn, username)
         return Data("suc", "new_game", {"game_id": g.id}).to_json()
         
+    def log_out(self):
+        self.client.username = ''
+        self.client.in_game = False
+        self.client.game_id = -1
+        self.client.broadcast = False
+        return Data("suc", "logout").to_json()
 
     def join_game(self, data, conn, username):
         g : game.Game = self.server.games[data["game_id"]]
-        d = Data("ok", "ok")
+        self.client.in_game = True
         if g.max_players == len(g.players):
-            d = Data("err", "full_game")
+            return (Data("err", "full_game").to_json(), None, None)
         else:
-            print("adding player")
             g.add_player(conn, username)
-            print(g.players)
-            d = Data("suc", "joined", g.complete_game())
-        return d.to_json()
+            self.client.broadcast = True
+            return (Data("suc", "user_joined", {"username": username}).to_json(), Data("suc", "joined", g.complete_game()).to_json(), g.all_clients().remove(self.client.conn))
+        
 
     def spec_game(self, data, conn):
         g : game.Game = self.server.games[data["game_id"]]
         g.add_spectator(conn)
         return Data("suc", "spec", g.complete_game()).to_json()
+
+    def exit_game(self, data, conn):
+        g : game.Game = self.server.games[data["game_id"]]
+        g.remove_player(data["spec"], conn, self.client.username)
+        if data["spec"]:
+            return (Data("suc", "left_spec").to_json(), None)
+        else:
+            self.client.in_game = False
+            self.client.broadcast = True
+            return (Data("suc", "user_left_game", {"username": self.client.username}).to_json(), g.all_clients())
+
 
     def aval_games(self):
         data = {}
@@ -171,17 +187,20 @@ class Commands():
         
     def move(self, data, username):
         g : game.Game = self.server.games[data["game_id"]]
-        if g.turn is not g.usernames.index(username) : return Data("err", "not_turn").to_json()
+        #if g.players[g.turn][1] != username: return Data("err", "not_turn").to_json()
         g.move(data["i"], data["j"])
         d = Data("suc", "move", {"player": username, "i": data["i"], "j": data["j"]})
         if g.count_moves == (g.max_players+1)**2:
             self.server.sendall = True
             d.packet["data"].pop("player")
             return d.to_json()
-        elif g.check_win() : 
-            self.server.sendall = True
-            d.packet["msg"] = "end"
-            return d.to_json()
         else:
             self.server.sendrest = True
-            return d.to_json()
+            return (d.to_json, g.all_clients().remove(self.client.conn))
+        '''elif g.check_win() : 
+            self.server.sendall = True
+            d.packet["msg"] = "end"
+            return (d.to_json(), g.all_clients())'''
+        
+        
+        

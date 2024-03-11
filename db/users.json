@@ -26,6 +26,15 @@
                 "loses": 0,
                 "draws": 0
             }
+        },
+        {
+            "username": "matan",
+            "password": "2006",
+            "stats": {
+                "wins": 0,
+                "loses": 0,
+                "draws": 0
+            }
         }
     ],
     "leaderboard": {

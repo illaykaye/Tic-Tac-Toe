@@ -8,7 +8,7 @@ class App():
         self.window = tk.Tk()
         self.clnt = clnt.Client(self.handle_response)
         self.clnt.start_client()
-
+        self.window.mainloop()
     
     def handle_response(self, res):
         if res["status"] == "err":
@@ -51,8 +51,6 @@ class App():
         ttk.Button(self.window,text="Signup", command=lambda: self.log_sign_page("signup")).pack(pady=1)
         ttk.Button(self.window, text='Exit', command=exit).pack(pady=3,expand=True)
 
-        self.window.mainloop()
-
     def err_win(self, err):
         error_win = tk.Tk()
         error_win.title("Error")
@@ -80,8 +78,7 @@ class App():
         ttk.Entry(self.window, textvariable=password,show="*").place(x=130,y=40)
         ttk.Button(self.window,text="Back", command=self.start_page).place(x=70,y=70)
         ttk.Button(self.window, text=button, command=lambda: self.clnt.request(act, username.get(), password.get())).place(x=160,y=70)
-        self.window.bind("Enter",lambda: self.clnt.request(act, username.get(), password.get()))
-        self.window.mainloop()
+        
     
     def main_page(self):
         self.reset_window()
@@ -91,7 +88,6 @@ class App():
         ttk.Button(self.window, text="Leaderboard", command=lambda: self.clnt.request("lb")).pack(pady=1,expand=True)
         ttk.Button(self.window, text='Exit', command=exit).pack(pady=3,expand=True)
 
-        self.window.mainloop()
 
     def leaderboard_page(self, data):
         self.reset_window()
@@ -101,7 +97,6 @@ class App():
         ttk.Label(self.window, text="Most wins: {}, {}".format(data["draws"]["username"], data["draws"]["num"])).pack(pady=3,expand=True)
         ttk.Button(self.window, text="Back", command=self.main_page).pack(pady=3,expand=True,side="bottom")
 
-        self.window.mainloop()
 
     def new_game_page(self):
         self.reset_window()
@@ -182,9 +177,9 @@ class TicTacToeGame(tk.Tk):
         self.tic_tac_toe_grid = [[None for _ in range(self.max_players+1)] for _ in range(self.max_players+1)]
         for i in range(self.max_players+1):
             for j in range(self.max_players+1):
-                sym = " " if self.board[i][j] != -1 else self.symbols[self.board[i][j]]
-                self.tic_tac_toe_grid[i][j] = tk.Button(self, text=sym, font=('Arial', 20), command=lambda: self.move(i,j), width=5, height=2, state=state)
-                self.tic_tac_toe_grid[i][j].grid(row=i+1, column=j)
+                sym = " " if self.board[i][j] == -1 else self.symbols[self.board[i][j]]
+                self.tic_tac_toe_grid[i][j] = tk.Button(self, text=sym, font=('Arial', 20), command=lambda i=i, j=j: self.move(i,j), width=5, height=2, state=state)
+                self.tic_tac_toe_grid[i][j].grid(row=i, column=j)
 
         # Player list
         self.player_labels = []
@@ -203,7 +198,8 @@ class TicTacToeGame(tk.Tk):
         self.tic_tac_toe_grid[i][j].config(text=self.symbols[self.symbol],state=tk.DISABLED)
         self.app.clnt.request("move", i, j)
     def exit_game(self):
-        mode = "spec" if self.spec else "player"
-        self.app.clnt.request("remove",mode, self.game_id)
+        self.app.clnt.request("exit_game",self.spec, self.game_id)
+
+
 if __name__ == "__main__":
     game = App()

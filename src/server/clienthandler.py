@@ -20,8 +20,7 @@ class ClientHandler(threading.Thread):
         self.username = ''
         self.in_game = False
         self.game_id = -1
-        self.sendall = False
-        self.sendrest = False
+        self.broadcast = False
 
     def run(self):
         print('[CLIENT CONNECTED] on address: ', self.addr)  # Printing connection address
@@ -37,7 +36,7 @@ class ClientHandler(threading.Thread):
                 packet = json.loads(recv)
                 cmd = cmds.Commands(self, self.server)
                 req = packet["req"]
-                print(packet)
+                to_self = None
                 # validate token (on login the client doesn't have token yet)
                 '''if req not in ["signup", "login"] and not cmd.valid_token(req["token"]):
                     to_send = cmds.Data("err", "invalid_token")'''
@@ -46,7 +45,6 @@ class ClientHandler(threading.Thread):
                     self.server.connections.pop(self.addr)
                     if self.in_game:
                         self.games[self.game_id].players.pop(self.username)
-                        self.games[self.game_id].usernames.remove(self.username)
                 elif req == "login":
                     to_send = cmd.login(packet["data"])
                 # sign up
@@ -64,26 +62,24 @@ class ClientHandler(threading.Thread):
                     to_send = cmd.leaderboard()
                 # req to join game
                 elif req == "join":
-                    to_send = cmd.join_game(packet["data"],self.conn,self.username)
+                    to_send, to_self ,clients = cmd.join_game(packet["data"],self.conn,self.username) # to_send would be to all other client, to_self to the client who sent the request
                 # ask to spec game
                 elif req == "spec":
                     to_send = cmd.spec_game(packet["data"],self.conn)
+                elif req == "exit_game":
+                    to_send, clients = cmd.exit_game(packet["data"],self.conn)
                 # players makes a move
                 elif req == "move":
-                    to_send = cmd.move(req)
-                    g : game.Game = self.server.games[req["data"]["game_id"]]
+                    to_send, clients = cmd.move(packet["data"],self.username)
                 # respond to client/s
                 print(to_send)
-                if self.sendall or self.sendrest:
-                    all : list[socket.socket] = [player[0] for player in g.players]
-                    all.append(g.spectators)
-                    if self.sendrest : all.remove(self.conn)
-                    for conn in all:
-                        conn.send(cp.encrypt(to_send))
+                if self.broadcast: # broadcast to all (or almost all) clients in game
+                    if clients != None:
+                        for conn in clients: conn.send(cp.encrypt(to_send))
+                    if to_self != None: self.conn.send(cp.encrypt(to_self))
                 else:
                     self.conn.send(cp.encrypt(to_send))
-                self.sendall = False
-                self.sendrest = False
+                self.broadcast = False
         except socket.timeout:
             print("Connection with {} timed out.".format(self.addr))
         except Exception as e:
