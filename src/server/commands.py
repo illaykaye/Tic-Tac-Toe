@@ -66,6 +66,7 @@ class Commands():
                 db = json.load(f)
             if len(db["users"]) == 0:
                 d = Data("err", "no such user exists")
+                return
             for user in db["users"]:
                 if username == user["username"]:
                     print("found user")
@@ -121,7 +122,27 @@ class Commands():
         finally:
             self.server.data_hazard = False
             return d.to_json()
-        
+
+    def aval_games(self):
+        data = {}
+        g : game.Game
+        for g in self.server.games.values():
+            data[g.id] = {"max_players": g.max_players, "num_players": len(g.players), "num_spec": len(g.spectators)}
+        return Data("info", "aval", data).to_json()
+
+    def leaderboard(self):
+        if self.is_data_hazard() : return Data("err", "db_busy").to_json()
+        self.server.data_hazard = True
+        d = Data("ok", "ok")
+        try:
+            with open(USERS_F, "r") as f:
+                db = json.load(f)
+            d = Data("info", "lb", db["leaderboard"])
+        except:
+            d = Data("err", "cannot open db")
+        finally:
+            self.server.data_hazard = False
+            return d.to_json()        
 
     def new_game(self, data, conn, username):
         print("in new game")
@@ -143,13 +164,12 @@ class Commands():
         g : game.Game = self.server.games[data["game_id"]]
         self.client.in_game = True
         if g.max_players == len(g.players):
-            return (Data("err", "full_game").to_json(), None, None)
+            return Data("err", "full_game").to_json()
         else:
             g.add_player(conn, username)
-            self.client.broadcast = True
-            return (Data("game", "user", {"username": username}).to_json(), Data("game", "joined", g.complete_game()).to_json(), g.all_clients().remove(self.client.conn))
+            g.updated_false()
+            return Data("game", "joined", g.complete_game()).to_json()
         
-
     def spec_game(self, data, conn):
         g : game.Game = self.server.games[data["game_id"]]
         g.add_spectator(conn)
@@ -163,46 +183,25 @@ class Commands():
         else:
             self.client.in_game = False
             self.client.broadcast = True
-            return (Data("game", "user_left_game", {"username": self.client.username}).to_json(), g.all_clients())
+            return Data("game", "user_left_game", {"username": self.client.username}).to_json()
+    
+    def update(self, data):
+        g : game.Game = self.server.games[data["game_id"]]
+        if not g.updated[self.client.username]:
+            g.updated[self.client.username] = True
+            return Data("game", "update", g.complete_game()).to_json()
+        else:
+            return Data("game", "no_update").to_json()
 
 
-    def aval_games(self):
-        data = {}
-        g : game.Game
-        for g in self.server.games.values():
-            data[g.id] = {"max_players": g.max_players, "num_players": len(g.players), "num_spec": len(g.spectators)}
-        return Data("info", "aval", data).to_json()
-
-    def leaderboard(self):
-        if self.is_data_hazard() : return Data("err", "db_busy").to_json()
-        self.server.data_hazard = True
-        d = Data("ok", "ok")
-        try:
-            with open(USERS_F, "r") as f:
-                db = json.load(f)
-            d = Data("info", "lb", db["leaderboard"])
-        except:
-            d = Data("err", "cannot open db")
-        finally:
-            self.server.data_hazard = False
-            return d.to_json()
-        
     def move(self, data, username):
         g : game.Game = self.server.games[data["game_id"]]
-        #if g.players[g.turn][1] != username: return Data("err", "not_turn").to_json()
+        if g.players[g.current_player] != username: return Data("err", "not_turn").to_json()
         g.move(data["i"], data["j"])
-        d = Data("game", "move", {"player": username, "i": data["i"], "j": data["j"]})
-        if g.count_moves == (g.max_players+1)**2:
-            self.server.sendall = True
-            d.packet["data"].pop("player")
-            return d.to_json()
-        else:
-            self.server.sendrest = True
-            return (d.to_json, g.all_clients().remove(self.client.conn))
-        '''elif g.check_win() : 
-            self.server.sendall = True
-            d.packet["msg"] = "end"
-            return (d.to_json(), g.all_clients())'''
+        #g.check_win()
+        g.updated_false()
+        return Data("game", "move", {"player": username, "i": data["i"], "j": data["j"]}).to_json()
+        
         
         
         

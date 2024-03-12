@@ -61,24 +61,27 @@ class ClientHandler(threading.Thread):
                     to_send = cmd.leaderboard()
                 # req to join game
                 elif req == "join":
-                    to_send, to_self ,clients = cmd.join_game(packet["data"],self.conn,self.username) # to_send would be to all other client, to_self to the client who sent the request
+                    to_send = cmd.join_game(packet["data"],self.conn,self.username) # to_send would be to all other client, to_self to the client who sent the request
                 # ask to spec game
                 elif req == "spec":
                     to_send = cmd.spec_game(packet["data"],self.conn)
                 elif req == "exit_game":
-                    to_send, clients = cmd.exit_game(packet["data"],self.conn)
+                    to_send = cmd.exit_game(packet["data"],self.conn)
                 # players makes a move
                 elif req == "move":
-                    to_send, clients = cmd.move(packet["data"],self.username)
+                    to_send = cmd.move(packet["data"],self.username)
+                elif req == "update":
+                    to_send = cmd.update(packet["data"])
+                self.conn.send(cp.encrypt(to_send))
                 # respond to client/s
                 print(to_send)
-                if self.broadcast: # broadcast to all (or almost all) clients in game
+                '''if self.broadcast: # broadcast to all (or almost all) clients in game
                     if clients != None:
                         for conn in clients: conn.send(cp.encrypt(to_send))
                     if to_self != None: self.conn.send(cp.encrypt(to_self))
                 else:
                     self.conn.send(cp.encrypt(to_send))
-                self.broadcast = False
+                self.broadcast = False'''
         except socket.timeout:
             print("Connection with {} timed out.".format(self.addr))
         except Exception as e:

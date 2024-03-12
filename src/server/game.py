@@ -9,11 +9,15 @@ class Game():
         self.spectators = []
         self.current_player = 0
         self.started = False
+        self.updated = {}
         self.count_moves = 0
 
     def add_player(self, conn, username: str):
         self.players.append((conn, username))
         self.num_players += 1
+        if self.num_players == self.max_players:
+            self.started = True
+        self.updated[username] = False
 
     def add_spectator(self, conn):
         self.spectators.append(conn)
@@ -22,7 +26,11 @@ class Game():
         if spec: self.spectators.remove(conn)
         else:
             self.players = list(filter(lambda tup: tup[1] != username, self.players))
-            
+
+    def updated_false(self):
+        for username, _ in self.updated.items():
+            self.updated[username] = False
+
     def move(self,i,j):
         self.grid[i,j] = self.current_player
         self.count_moves += 1

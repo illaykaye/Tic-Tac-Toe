@@ -21,7 +21,6 @@ class Client():
         self.callback = callback
         self.token = 0
         self.username = ''
-        self.game_id = None
 
     def start_client(self):
         self.client_socket.connect((HOST, PORT))  # Connecting to server's socket
@@ -45,7 +44,7 @@ class Client():
             "data": None,
         }
         if req in ["move"]:
-            packet["data"] = {"game_id": self.game_id, "i": argv[0], "j": argv[1]}
+            packet["data"] = {"game_id": argv[0], "i": argv[1], "j": argv[2]}
         elif req in ["login", "signup"]:
             packet["data"] = {"username": argv[0], "password": argv[1]}
         elif req in ["exit_game"]:
@@ -54,10 +53,12 @@ class Client():
             packet["data"] = {"game_id": int(argv[0])} # arg - game_id
         elif req in ["new"]:
             packet["data"] = {"num_players": argv[0]} # arg - num_players
+        elif req == "update":
+            packet["data"] = {"game_id": argv[0]}
         elif req in ["lb", "aval", "exit"]:
             packet.pop("data") # no args or data needed
         self.client_socket.send(cp.encrypt(json.dumps(packet,default=list)))
-        time.sleep(0.3)
+        time.sleep(0.2)
         response = json.loads(cp.decrypt(self.client_socket.recv(4096)))
         print(response)
         self.callback(response)
