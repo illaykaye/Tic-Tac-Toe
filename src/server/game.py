@@ -1,3 +1,7 @@
+import threading
+import time
+
+MOVE_PLAYER_LIMIT = 30
 
 class Game():
     def __init__(self, x, id):
@@ -11,13 +15,19 @@ class Game():
         self.started = False
         self.updated = {}
         self.count_moves = 0
+        self.turn_timer = threading.Timer(30, lambda: self.next())
+        self.timesup = {}
+        self.time_remaining = 0
 
     def add_player(self, conn, username: str):
         self.players.append((conn, username))
         self.num_players += 1
         if self.num_players == self.max_players:
             self.started = True
+            self.time_remaining = MOVE_PLAYER_LIMIT
+            self.turn_timer.start()
         self.updated[username] = False
+        self.timesup[username] = False
 
     def add_spectator(self, conn):
         self.spectators.append(conn)
@@ -32,10 +42,27 @@ class Game():
             self.updated[username] = False
 
     def move(self,i,j):
-        self.grid[i,j] = self.current_player
+        self.grid[i][j] = self.current_player
+        self.next()
+
+    def skip_player(self):
+        for username, _ in self.updated.items():
+            self.updated[username] = True
+        self.sync_timers()
+        self.next()
+        
+
+    def next(self):
         self.count_moves += 1
         self.current_player = (self.current_player + 1) % len(self.players)
-        
+        self.time_remaining = MOVE_PLAYER_LIMIT
+        self.turn_timer = threading.Timer(30, lambda: self.next())
+        self.updated_false()
+        self.turn_timer.start()
+
+    def sync_timers(self):
+        if not all(self.timesup.values()): threading.Timer(0.1, lambda: self.sync_timers).start()
+
     def check_win(self,i,j):
         symbol = self.current_player - 1
 
@@ -93,7 +120,8 @@ class Game():
             "num_players": self.num_players,
             "players": [player[1] for player in self.players],
             "current_player": self.current_player,
-            "grid": self.grid
+            "grid": self.grid,
+            "time_remaining": self.time_remaining
         }
     def end(self, res):
         if res == -1:

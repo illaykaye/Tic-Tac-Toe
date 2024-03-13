@@ -20,7 +20,6 @@ class ClientHandler(threading.Thread):
         self.username = ''
         self.in_game = False
         self.game_id = -1
-        self.broadcast = False
 
     def run(self):
         print('[CLIENT CONNECTED] on address: ', self.addr)  # Printing connection address
@@ -52,7 +51,7 @@ class ClientHandler(threading.Thread):
                 # new game
                 elif req == "new":
                     print("new game")
-                    to_send = cmd.new_game(packet["data"],self.conn,self.username)
+                    to_send = cmd.new_game(packet["data"])
                 # list available games
                 elif req == "aval":
                     to_send = cmd.aval_games()
@@ -61,15 +60,17 @@ class ClientHandler(threading.Thread):
                     to_send = cmd.leaderboard()
                 # req to join game
                 elif req == "join":
-                    to_send = cmd.join_game(packet["data"],self.conn,self.username) # to_send would be to all other client, to_self to the client who sent the request
+                    to_send = cmd.join_game(packet["data"]) # to_send would be to all other client, to_self to the client who sent the request
                 # ask to spec game
                 elif req == "spec":
-                    to_send = cmd.spec_game(packet["data"],self.conn)
+                    to_send = cmd.spec_game(packet["data"])
                 elif req == "exit_game":
-                    to_send = cmd.exit_game(packet["data"],self.conn)
+                    to_send = cmd.exit_game(packet["data"])
                 # players makes a move
                 elif req == "move":
-                    to_send = cmd.move(packet["data"],self.username)
+                    to_send = cmd.move(packet["data"])
+                elif req == "timesup":
+                    to_send = cmd.timesup(packet["data"])
                 elif req == "update":
                     to_send = cmd.update(packet["data"])
                 self.conn.send(cp.encrypt(to_send))
