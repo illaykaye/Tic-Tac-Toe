@@ -17,6 +17,42 @@
                 "loses": 0,
                 "draws": 0
             }
+        },
+        {
+            "username": "jesus",
+            "password": "3a5088295708d3304f06de0499b9243bfbd68d14878615c531f0e346f47b389d",
+            "stats": {
+                "wins": 0,
+                "loses": 0,
+                "draws": 0
+            }
+        },
+        {
+            "username": "okok",
+            "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+            "stats": {
+                "wins": 0,
+                "loses": 0,
+                "draws": 0
+            }
+        },
+        {
+            "username": "illay1",
+            "password": "72d1b5da6eeaf1789df86487da50ad5e9dadb5ffaecb56b6de592aa286c9c1b8",
+            "stats": {
+                "wins": 0,
+                "loses": 0,
+                "draws": 0
+            }
+        },
+        {
+            "username": "illay2",
+            "password": "72d1b5da6eeaf1789df86487da50ad5e9dadb5ffaecb56b6de592aa286c9c1b8",
+            "stats": {
+                "wins": 0,
+                "loses": 0,
+                "draws": 0
+            }
         }
     ],
     "leaderboard": {

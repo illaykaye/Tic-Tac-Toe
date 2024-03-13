@@ -18,8 +18,6 @@ class ClientHandler(threading.Thread):
         self.conn : socket.socket = conn
         self.addr = addr
         self.username = ''
-        self.in_game = False
-        self.game_id = -1
 
     def run(self):
         print('[CLIENT CONNECTED] on address: ', self.addr)  # Printing connection address
@@ -30,22 +28,22 @@ class ClientHandler(threading.Thread):
 
             while True:
                 recv = cp.decrypt(self.conn.recv(4096))
-                print(recv)
                 packet = json.loads(recv)
                 cmd = cmds.Commands(self, self.server)
                 req = packet["req"]
-                to_self = None
+                
                 # validate token (on login the client doesn't have token yet)
                 if req not in ["signup", "login"] and not cmd.valid_token(packet["token"]):
                     to_send = cmds.Data("err", "invalid_token").to_json()
                 #exit
                 elif req == "exit":
                     self.server.connections.pop(self.addr)
-                    if self.in_game:
-                        self.games[self.game_id].players.pop(self.username)
+                    to_send = cmds.Data("suc", "exit")
                 #login
                 elif req == "login":
                     to_send = cmd.login(packet["data"])
+                elif req == "logout":
+                    to_send = cmd.log_out()
                 # sign up
                 elif req == "signup":
                     to_send = cmd.signup(packet["data"])
@@ -72,20 +70,14 @@ class ClientHandler(threading.Thread):
                     to_send = cmd.move(packet["data"])
                 elif req == "timer":
                     to_send = cmd.timer(packet["data"])
-                elif req == "timesup":
-                    to_send = cmd.timesup(packet["data"])
+                elif req == "turn_ended":
+                    to_send = cmd.turn_ended(packet["data"])
                 elif req == "update":
                     to_send = cmd.update(packet["data"])
-                self.conn.send(cp.encrypt(to_send))
+                
                 # respond to client/s
-                print(to_send)
-                '''if self.broadcast: # broadcast to all (or almost all) clients in game
-                    if clients != None:
-                        for conn in clients: conn.send(cp.encrypt(to_send))
-                    if to_self != None: self.conn.send(cp.encrypt(to_self))
-                else:
-                    self.conn.send(cp.encrypt(to_send))
-                self.broadcast = False'''
+                self.conn.send(cp.encrypt(to_send))
+
         except socket.timeout:
             print("Connection with {} timed out.".format(self.addr))
         except Exception as e:

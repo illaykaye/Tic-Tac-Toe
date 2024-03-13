@@ -14,12 +14,7 @@ class Game():
         self.current_player = 0
         self.started = False
         self.updated = {}
-        self.cannot_update = False
         self.count_moves = 0
-        self.turn_timer = threading.Timer(30, lambda: self.skip_player())
-        self.reduce_timer = threading.Timer(1, lambda: self.reduce_time())
-        self.timesup = {}
-        self.time_remaining = 0
         self.status = -1
 
     def add_player(self, conn, username: str):
@@ -27,10 +22,7 @@ class Game():
         self.num_players += 1
         if self.num_players == self.max_players:
             self.started = True
-            self.time_remaining = MOVE_PLAYER_LIMIT
-            self.turn_timer.start()
         self.updated[username] = False
-        self.timesup[username] = False
 
     def add_spectator(self, conn):
         self.spectators.append(conn)
@@ -44,37 +36,15 @@ class Game():
         for username, _ in self.updated.items():
             self.updated[username] = False
 
-    def reduce_time(self):
-        self.reduce_timer = threading.Timer(1, lambda: self.reduce_time)
-        self.time_remaining -=1
-        self.reduce_timer.start()
-
     def move(self,i,j):
         self.grid[i][j] = self.current_player
         self.next()
 
-    def skip_player(self):
-        print("not sending updates")
-        #self.cannot_update = True
-        #self.sync_timers()
-        #self.updated_false()
-        self.next()
-        
-
     def next(self):
         self.count_moves += 1
         self.current_player = (self.current_player + 1) % len(self.players)
-        self.reduce_timer.cancel()
-        self.time_remaining = MOVE_PLAYER_LIMIT
-        self.turn_timer = threading.Timer(30, lambda: self.skip_player())
-        self.reduce_timer = threading.Timer(1, lambda: self.reduce_time())
         self.updated_false()
-        self.cannot_update = False
-        self.turn_timer.start()
-        self.reduce_timer.start()
 
-    def sync_timers(self):
-        if not all(self.timesup.values()): threading.Timer(0.1, lambda: self.sync_timers()).start()
 
     def check_win(self,i,j):
         symbol = self.current_player - 1
@@ -133,8 +103,7 @@ class Game():
             "num_players": self.num_players,
             "players": [player[1] for player in self.players],
             "current_player": self.current_player,
-            "grid": self.grid,
-            "time_remaining": self.time_remaining
+            "grid": self.grid
         }
     def end(self, res):
         if res == -1:

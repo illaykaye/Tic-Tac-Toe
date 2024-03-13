@@ -1,7 +1,6 @@
 import game
 import json
 import time
-import datetime
 import threading
 import hashlib
 import jwt
@@ -40,9 +39,8 @@ class Commands():
         return False
 
     def generate_token(self,username):
-        encoded_jwt = jwt.encode({"username": username}, "secret", algorithm="HS256")
+        encoded_jwt = jwt.encode({"username": username}, SECRET_KEY, algorithm="HS256")
         return encoded_jwt
-        return jwt.encode(payload, SECRET_KEY, algorithms="HS256")
     
     def valid_token(self,token):
         try:
@@ -50,10 +48,9 @@ class Commands():
             print(payload)
             username = payload['username']
             print(username)
-            for _, client in self.server.connections.values():
+            for _, client in self.server.connections.items():
                 if username == client.username:
                     return True
-            #if username in list(map(lambda client: client.username, self.server.connections.values())): return True
         except jwt.InvalidTokenError:
             return False
     
@@ -66,6 +63,10 @@ class Commands():
 
         username = data["username"]
         password: str = data["password"]
+        
+        for _, client in self.server.connections.items():
+                if username == client.username:
+                    return Data("err", "user already logged in").to_json()
 
         try:
             with open(USERS_F, 'r') as f:
@@ -160,13 +161,10 @@ class Commands():
         
     def log_out(self):
         self.client.username = ''
-        self.client.in_game = False
-        self.client.game_id = -1
         return Data("suc", "logout").to_json()
 
     def join_game(self, data):
         g : game.Game = self.server.games[data["game_id"]]
-        self.client.in_game = True
         if g.max_players == len(g.players):
             return Data("err", "full_game").to_json()
         else:
@@ -185,26 +183,21 @@ class Commands():
         if data["spec"]:
             return (Data("suc", "left_spec").to_json(), None)
         else:
-            self.client.in_game = False
-            self.client.broadcast = True
             return Data("game", "user_left_game", {"username": self.client.username}).to_json()
     
     def update(self, data):
         g : game.Game = self.server.games[data["game_id"]]
-        if not g.updated[self.client.username] and not g.cannot_update:
+        if not g.updated[self.client.username]:
             g.updated[self.client.username] = True
             return Data("game", "update", g.complete_game()).to_json()
         else:
             return Data("game", "no_update").to_json()
 
-    def timer(self, data):
+    def turn_ended(self, data):
         g : game.Game = self.server.games[data["game_id"]]
-        return Data("game", "timer", {"time_remaining": g.time_remaining})
-
-    def timesup(self, data):
-        g : game.Game = self.server.games[data["game_id"]]
-        g.timesup[self.client.username] = True
-        return Data("game", "timesup").to_json()
+        g.next()
+        #g.timesup[self.client.username] = True
+        return Data("game", "turn_ended").to_json()
 
 
     def move(self, data):
@@ -212,6 +205,5 @@ class Commands():
         if g.players[g.current_player][1] != self.client.username: return Data("err", "not_turn").to_json()
         g.move(data["i"], data["j"])
         #g.check_win()
-        g.updated_false()
         return Data("game", "move", {"player": self.client.username, "i": data["i"], "j": data["j"]}).to_json()
         
