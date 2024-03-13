@@ -3,7 +3,7 @@ import json
 import time
 import datetime
 import threading
-from argon2 import PasswordHasher
+import hashlib
 import jwt
 from pathlib import Path
 import uuid
@@ -12,6 +12,8 @@ db_folder = Path(__file__).parents[2]
 USERS_F = db_folder / "db" / "users.json"
 LEADERB = db_folder / "db" /"leaderboard.json"
 SECRET_KEY = "yeehaw"
+
+FORMAT = 'utf-8'
 
 class Data():
     def __init__(self, status: str, message: str, data: dict=None):
@@ -38,29 +40,32 @@ class Commands():
         return False
 
     def generate_token(self,username):
-        payload = {
-            "username": username,
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
-        }
+        encoded_jwt = jwt.encode({"username": username}, "secret", algorithm="HS256")
+        return encoded_jwt
         return jwt.encode(payload, SECRET_KEY, algorithms="HS256")
-    '''
+    
     def valid_token(self,token):
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+            print(payload)
             username = payload['username']
-            if username in list(map(lambda client: client.username, self.server.connections.values())): return True
+            print(username)
+            for _, client in self.server.connections.values():
+                if username == client.username:
+                    return True
+            #if username in list(map(lambda client: client.username, self.server.connections.values())): return True
         except jwt.InvalidTokenError:
-            return True
-    '''
+            return False
+    
     # logs in the user
     def login(self,data):
         if self.is_data_hazard(): return Data("err", "db_busy").to_json()
 
         self.server.data_hazard = True
         d = Data("ok", "ok")
-        ph = PasswordHasher()
+
         username = data["username"]
-        password = data["password"]
+        password: str = data["password"]
 
         try:
             with open(USERS_F, 'r') as f:
@@ -72,15 +77,16 @@ class Commands():
                 if username == user["username"]:
                     print("found user")
                     self.client.username = username
-                    try:
-                        #if ph.verify(user["password"],password):
-                        if user["password"] == password:
-                            d = Data("suc", "logged", {"username": username, "token": 1})
-                        else: 
-                            d = Data("err", "username or password incorrect")
-                            return
-                    except Exception:
-                        d = Data("err", "password incorrect")
+                    password_bytes = password.encode(FORMAT)
+                    hasher = hashlib.sha256()
+                    hasher.update(password_bytes)
+                    hashed_password = hasher.hexdigest()
+                    if user["password"] == hashed_password:
+                        print("user correct")
+                        d = Data("suc", "logged", {"username": username, "token": self.generate_token(username)})
+                    else: 
+                        d = Data("err", "username or password incorrect")
+                        return
         except:
             d = Data("err", "cannot open db")
         finally:
@@ -93,9 +99,14 @@ class Commands():
         print(USERS_F)
         self.server.data_hazard = True
         d : Data = Data("ok", "ok")
-        ph = PasswordHasher()
         username = data["username"]
-        password = data["password"]
+        password: str = data["password"]
+
+        password_bytes = password.encode(FORMAT)
+        hasher = hashlib.sha256()
+        hasher.update(password_bytes)
+        hashed_password = hasher.hexdigest()
+
         try:
             with open(USERS_F, "r") as f:
                 db = json.load(f)
@@ -105,14 +116,7 @@ class Commands():
                     d = Data("err", "username taken")
                     return
             stats = {"wins": 0, "loses": 0, "draws": 0}
-            print(password)
-            '''try:
-                hashps = ph.hash(password)
-            except:
-                d = Data("err", "error while signing up")
-                return'''
-            #print(type(hashps))
-            user = {"username": username, "password": password, "stats": stats}
+            user = {"username": username, "password": hashed_password, "stats": stats}
             db["users"].append(user)
             with open(USERS_F, "w") as f:
                 f.seek(0)
@@ -187,16 +191,20 @@ class Commands():
     
     def update(self, data):
         g : game.Game = self.server.games[data["game_id"]]
-        if not g.updated[self.client.username]:
+        if not g.updated[self.client.username] and not g.cannot_update:
             g.updated[self.client.username] = True
             return Data("game", "update", g.complete_game()).to_json()
         else:
             return Data("game", "no_update").to_json()
 
+    def timer(self, data):
+        g : game.Game = self.server.games[data["game_id"]]
+        return Data("game", "timer", {"time_remaining": g.time_remaining})
+
     def timesup(self, data):
         g : game.Game = self.server.games[data["game_id"]]
         g.timesup[self.client.username] = True
-        return Data("suc", "ok").to_json()
+        return Data("game", "timesup").to_json()
 
 
     def move(self, data):

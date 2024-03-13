@@ -25,7 +25,7 @@ class ClientHandler(threading.Thread):
         print('[CLIENT CONNECTED] on address: ', self.addr)  # Printing connection address
 
         try:
-            self.server.connections[self.addr] = self.conn
+            self.server.connections[self.addr] = self
             self.conn.send(cp.encrypt(cmds.Data("suc", "connected").to_json()))
 
             while True:
@@ -36,13 +36,14 @@ class ClientHandler(threading.Thread):
                 req = packet["req"]
                 to_self = None
                 # validate token (on login the client doesn't have token yet)
-                '''if req not in ["signup", "login"] and not cmd.valid_token(req["token"]):
-                    to_send = cmds.Data("err", "invalid_token")'''
-                # login
-                if req == "exit":
+                if req not in ["signup", "login"] and not cmd.valid_token(packet["token"]):
+                    to_send = cmds.Data("err", "invalid_token").to_json()
+                #exit
+                elif req == "exit":
                     self.server.connections.pop(self.addr)
                     if self.in_game:
                         self.games[self.game_id].players.pop(self.username)
+                #login
                 elif req == "login":
                     to_send = cmd.login(packet["data"])
                 # sign up
@@ -69,6 +70,8 @@ class ClientHandler(threading.Thread):
                 # players makes a move
                 elif req == "move":
                     to_send = cmd.move(packet["data"])
+                elif req == "timer":
+                    to_send = cmd.timer(packet["data"])
                 elif req == "timesup":
                     to_send = cmd.timesup(packet["data"])
                 elif req == "update":

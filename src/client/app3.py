@@ -57,11 +57,19 @@ class App(tk.Tk):
                 self.open_game(packet["data"], packet["msg"] == "spec")
             elif packet["msg"] == "spec":
                 self.open_game(packet["data"], packet["msg"] == "spec")
+            elif packet["msg"] == "user_left_game":
+                self.show_frame(MainPage)
             elif packet["msg"] == "update":
                 print("updating")
                 self.frames[TicTacToeGame].refresh_page(packet["data"])
             elif packet["msg"] in ["no_update", "move"]:
                 self.frames[TicTacToeGame].request_update()
+            elif packet["msg"] == "timesup":
+                time.sleep(1)
+                self.frames[TicTacToeGame].request_update()
+            elif packet["msg"] == "timer":
+                self.frames[TicTacToeGame].update_timer(packet["data"]["time_remaining"])
+
 
     def show_frame(self, cont, data=None):
         for frame in self.frames.values():
@@ -81,7 +89,7 @@ class App(tk.Tk):
         self.frames[TicTacToeGame] = TicTacToeGame(self.container, self, data, spec)
         self.show_frame(TicTacToeGame)
         self.frames[TicTacToeGame].refresh_page(data)
-        self.frames[TicTacToeGame].update_timer()
+        self.frames[TicTacToeGame].update_timer(data["time_remaining"])
 
 
     def on_closing(self):
@@ -235,7 +243,6 @@ class TicTacToeGame(tk.Frame):
         self.spec = spec
         self.need_update = True
         self.set_data(data)
-        #self.tic_tac_toe_grid = [[None for _ in range(self.max_players+1)] for _ in range(self.max_players+1)]
         self.create_widgets()
 
 
@@ -297,16 +304,16 @@ class TicTacToeGame(tk.Frame):
         timer_timer = threading.Timer(1, lambda: self.update_timer())
         timer_timer.start()'''
     
-    def update_timer(self):
-        timer_timer = threading.Timer(1, lambda: self.update_timer())
+    def update_timer(self, time):
+        timer_timer = threading.Timer(1, lambda: self.controller.client.request("timer", self.game_id))
         if not self.started: timer_timer.start()
         else:
-            self.time_remaining -= 1
-            if self.time_remaining < 0: self.controller.client.request("timesup", self.game_id)
-            minutes = int(self.time_remaining // 60)
-            seconds = int(self.time_remaining % 60)
+            #if self.time_remaining < 0: self.controller.client.request("timesup", self.game_id)
+            minutes = int(time // 60)
+            seconds = int(time % 60)
             time_str = f"{minutes:02d}:{seconds:02d}"
             self.timer_label.config(text=time_str)
+            #self.time_remaining -= 1
             timer_timer.start()
     
     def create_widgets(self):

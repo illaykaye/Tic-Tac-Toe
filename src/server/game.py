@@ -14,10 +14,13 @@ class Game():
         self.current_player = 0
         self.started = False
         self.updated = {}
+        self.cannot_update = False
         self.count_moves = 0
-        self.turn_timer = threading.Timer(30, lambda: self.next())
+        self.turn_timer = threading.Timer(30, lambda: self.skip_player())
+        self.reduce_timer = threading.Timer(1, lambda: self.reduce_time())
         self.timesup = {}
         self.time_remaining = 0
+        self.status = -1
 
     def add_player(self, conn, username: str):
         self.players.append((conn, username))
@@ -41,27 +44,37 @@ class Game():
         for username, _ in self.updated.items():
             self.updated[username] = False
 
+    def reduce_time(self):
+        self.reduce_timer = threading.Timer(1, lambda: self.reduce_time)
+        self.time_remaining -=1
+        self.reduce_timer.start()
+
     def move(self,i,j):
         self.grid[i][j] = self.current_player
         self.next()
 
     def skip_player(self):
-        for username, _ in self.updated.items():
-            self.updated[username] = True
-        self.sync_timers()
+        print("not sending updates")
+        #self.cannot_update = True
+        #self.sync_timers()
+        #self.updated_false()
         self.next()
         
 
     def next(self):
         self.count_moves += 1
         self.current_player = (self.current_player + 1) % len(self.players)
+        self.reduce_timer.cancel()
         self.time_remaining = MOVE_PLAYER_LIMIT
-        self.turn_timer = threading.Timer(30, lambda: self.next())
+        self.turn_timer = threading.Timer(30, lambda: self.skip_player())
+        self.reduce_timer = threading.Timer(1, lambda: self.reduce_time())
         self.updated_false()
+        self.cannot_update = False
         self.turn_timer.start()
+        self.reduce_timer.start()
 
     def sync_timers(self):
-        if not all(self.timesup.values()): threading.Timer(0.1, lambda: self.sync_timers).start()
+        if not all(self.timesup.values()): threading.Timer(0.1, lambda: self.sync_timers()).start()
 
     def check_win(self,i,j):
         symbol = self.current_player - 1

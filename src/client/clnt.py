@@ -50,7 +50,7 @@ class Client():
             packet["data"] = {"username": argv[0], "password": argv[1]}
         elif req in ["exit_game"]:
             packet["data"] = {"mode": argv[0], "game_id": argv[1]}
-        elif req in ["join", "spec", "timesup"]:
+        elif req in ["join", "spec", "timesup", "timer"]:
             packet["data"] = {"game_id": int(argv[0])} # arg - game_id
         elif req in ["new"]:
             packet["data"] = {"num_players": argv[0]} # arg - num_players
