@@ -31,7 +31,6 @@ class ClientHandler(threading.Thread):
                 packet = json.loads(recv)
                 cmd = cmds.Commands(self, self.server)
                 req = packet["req"]
-                
                 # validate token (on login the client doesn't have token yet)
                 if req not in ["signup", "login"] and not cmd.valid_token(packet["token"]):
                     to_send = cmds.Data("err", "invalid_token").to_json()
@@ -49,13 +48,12 @@ class ClientHandler(threading.Thread):
                     to_send = cmd.signup(packet["data"])
                 # new game
                 elif req == "new":
-                    print("new game")
                     to_send = cmd.new_game(packet["data"])
                 # list available games
                 elif req == "aval":
                     to_send = cmd.aval_games()
+                # request leaderboard
                 elif req == "lb":
-                    print("leaderboard")
                     to_send = cmd.leaderboard()
                 # req to join game
                 elif req == "join":
@@ -68,10 +66,10 @@ class ClientHandler(threading.Thread):
                 # players makes a move
                 elif req == "move":
                     to_send = cmd.move(packet["data"])
-                elif req == "timer":
-                    to_send = cmd.timer(packet["data"])
+                # client informs server that his turn ended (without him making a move)
                 elif req == "turn_ended":
                     to_send = cmd.turn_ended(packet["data"])
+                # client requests an update on the game
                 elif req == "update":
                     to_send = cmd.update(packet["data"])
                 

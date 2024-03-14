@@ -8,8 +8,7 @@ from pathlib import Path
 import uuid
 
 db_folder = Path(__file__).parents[2]
-USERS_F = db_folder / "db" / "users.json"
-LEADERB = db_folder / "db" /"leaderboard.json"
+DB_F = db_folder / "db" / "users.json"
 SECRET_KEY = "yeehaw"
 
 FORMAT = 'utf-8'
@@ -45,9 +44,7 @@ class Commands():
     def valid_token(self,token):
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-            print(payload)
             username = payload['username']
-            print(username)
             for _, client in self.server.connections.items():
                 if username == client.username:
                     return True
@@ -69,21 +66,19 @@ class Commands():
                     return Data("err", "user already logged in").to_json()
 
         try:
-            with open(USERS_F, 'r') as f:
+            with open(DB_F, 'r') as f:
                 db = json.load(f)
             if len(db["users"]) == 0:
                 d = Data("err", "no such user exists")
                 return
             for user in db["users"]:
                 if username == user["username"]:
-                    print("found user")
-                    self.client.username = username
                     password_bytes = password.encode(FORMAT)
                     hasher = hashlib.sha256()
                     hasher.update(password_bytes)
                     hashed_password = hasher.hexdigest()
                     if user["password"] == hashed_password:
-                        print("user correct")
+                        self.client.username = username
                         d = Data("suc", "logged", {"username": username, "token": self.generate_token(username)})
                     else: 
                         d = Data("err", "username or password incorrect")
@@ -97,7 +92,6 @@ class Commands():
     # signs up new user, makes sure username is unique
     def signup(self,data):
         if self.is_data_hazard(): return Data("err", "db_busy").to_json()
-        print(USERS_F)
         self.server.data_hazard = True
         d : Data = Data("ok", "ok")
         username = data["username"]
@@ -109,9 +103,8 @@ class Commands():
         hashed_password = hasher.hexdigest()
 
         try:
-            with open(USERS_F, "r") as f:
+            with open(DB_F, "r") as f:
                 db = json.load(f)
-            print(db)
             for user in db["users"]:
                 if user["username"] == username:
                     d = Data("err", "username taken")
@@ -119,7 +112,7 @@ class Commands():
             stats = {"wins": 0, "loses": 0, "draws": 0}
             user = {"username": username, "password": hashed_password, "stats": stats}
             db["users"].append(user)
-            with open(USERS_F, "w") as f:
+            with open(DB_F, "w") as f:
                 f.seek(0)
                 json.dump(db, f, indent=4)
                 d = Data("suc", "signup", {"username": username})
@@ -141,7 +134,7 @@ class Commands():
         self.server.data_hazard = True
         d = Data("ok", "ok")
         try:
-            with open(USERS_F, "r") as f:
+            with open(DB_F, "r") as f:
                 db = json.load(f)
             d = Data("info", "lb", db["leaderboard"])
         except:
@@ -151,13 +144,9 @@ class Commands():
             return d.to_json()        
 
     def new_game(self, data):
-        print("in new game")
-        g = game.Game(data["num_players"], int(uuid.uuid4()))
+        g = game.Game(data["num_players"], int(uuid.uuid4()), self.server)
         self.server.games[g.id] = g
-        print("created new game")
-        print(self.server.games)
         return self.join_game({"game_id": g.id})
-        #return Data("suc", "new_game", {"game_id": g.id}).to_json()
         
     def log_out(self):
         self.client.username = ''
@@ -178,10 +167,13 @@ class Commands():
         return Data("game", "spec", g.complete_game()).to_json()
 
     def exit_game(self, data):
+        print("exiting game")
         g : game.Game = self.server.games[data["game_id"]]
-        g.remove_player(data["spec"], self.client.conn, self.client.username)
+        g.remove_player(self.client.conn, data["spec"], self.client.username)
+        if g.num_players == 0 and len(g.spectators) == 0:
+            del self.server.games[g.id]
         if data["spec"]:
-            return (Data("suc", "left_spec").to_json(), None)
+            return Data("game", "left_spec").to_json()
         else:
             return Data("game", "user_left_game", {"username": self.client.username}).to_json()
     

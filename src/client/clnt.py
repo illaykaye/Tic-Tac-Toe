@@ -31,7 +31,7 @@ class Client():
     def close_client(self):
         self.client_socket.close()
 
-    def request(self,req, *argv):
+    def request(self, req, *argv):
         packet = {
             "token": self.token,
             "req": req,
@@ -42,7 +42,7 @@ class Client():
         elif req in ["login", "signup"]:
             packet["data"] = {"username": argv[0], "password": argv[1]}
         elif req in ["exit_game"]:
-            packet["data"] = {"mode": argv[0], "game_id": argv[1]}
+            packet["data"] = {"game_id": argv[0], "spec": argv[1]}
         elif req in ["join", "spec", "turn_ended", "timer"]:
             packet["data"] = {"game_id": int(argv[0])} # arg - game_id
         elif req in ["new"]:
@@ -51,7 +51,7 @@ class Client():
             packet["data"] = {"game_id": argv[0]}
         elif req in ["lb", "aval", "exit", "logout"]:
             packet.pop("data") # no args or data needed
-
+            print(packet)
         self.client_socket.send(cp.encrypt(json.dumps(packet,default=list)))
         response = json.loads(cp.decrypt(self.client_socket.recv(4096)))
         self.callback(response)
