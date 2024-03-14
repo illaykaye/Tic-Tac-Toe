@@ -172,7 +172,9 @@ class Commands():
         g.remove_player(self.client.conn, data["spec"], self.client.username)
         if g.num_players == 0 and len(g.spectators) == 0:
             del self.server.games[g.id]
-        if data["spec"]:
+        if data["destroy"]:
+            return Data("suc", "exit").to_json()
+        elif data["spec"]:
             return Data("game", "left_spec").to_json()
         else:
             return Data("game", "user_left_game", {"username": self.client.username}).to_json()

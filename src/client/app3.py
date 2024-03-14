@@ -1,17 +1,17 @@
 import tkinter as tk
 import tkinter.ttk as ttk
 import threading
-import socket
 import clnt
-import time
+
+PLAYER_TIME_LIMIT = 30
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Tic Tac Toe")
-        self.geometry('500x500')
+        self.geometry('550x550')
         self.resizable(False, False)
-        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.protocol("WM_DELETE_WINDOW", lambda: self.on_closing())
 
         self.client = clnt.Client(self.handle_respone)
         self.container = ttk.Frame(self)
@@ -22,7 +22,7 @@ class App(tk.Tk):
 
         self.frames = {}
         self.init_frames()
-
+        self.in_game = False
         self.client.start_client()
     
     def init_frames(self):
@@ -49,7 +49,6 @@ class App(tk.Tk):
             elif packet["msg"] == "logout":
                 self.client.token = ''
                 self.client.username = ''
-                #self.init_frames()
                 self.show_frame(StartPage)
             elif packet["msg"] == "signup":
                 self.show_frame(StartPage)
@@ -69,10 +68,8 @@ class App(tk.Tk):
             elif packet["msg"] == "spec":
                 self.open_game(packet["data"], packet["msg"] == "spec")
             elif packet["msg"] == "user_left_game":
-                del self.frames[TicTacToeGame]
                 self.show_frame(MainPage)
             elif packet["msg"] == "left_spec":
-                del self.frames[TicTacToeGame]
                 self.show_frame(MainPage)
             elif packet["msg"] == "update":
                 print("updating")
@@ -88,7 +85,7 @@ class App(tk.Tk):
     def show_frame(self, cont, data=None):     
         for frame in self.frames.values():
             frame.pack_forget()
-        frame : ttk.Frame = self.frames.get(cont)
+        frame : ttk.Frame = self.frames.get(cont) # self.frames[cont]
         if data != None:
             print("okok")
             frame.refresh_page(data)
@@ -108,9 +105,16 @@ class App(tk.Tk):
         self.frames[TicTacToeGame].refresh_page(data)
         #self.frames[TicTacToeGame].timer_config(data["time_remaining"])
 
+    def exit_game(self, game_id, spec, destroy=False):
+        self.frames[TicTacToeGame].pack_forget()
+        del self.frames[TicTacToeGame]
+        self.client.request("exit_game", game_id, spec, destroy)
 
     def on_closing(self):
-        self.destroy()
+        if self.in_game:
+            self.frames[TicTacToeGame].exit_game(destroy=True)
+        else:
+            self.destroy()
 
     def err_win(self, err):
         error_win = tk.Tk()
@@ -130,12 +134,12 @@ class App(tk.Tk):
 class StartPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
-        self.controller = controller
+        self.controller : App = controller
 
         ttk.Label(self, text="Tic Tac Toe", font=("ubuntu",16)).pack(pady=10)
-        ttk.Button(self, text="Login", command=lambda: controller.show_frame(LoginPage)).pack(pady=10)
-        ttk.Button(self, text="Signup", command=lambda: controller.show_frame(SignupPage)).pack(pady=10)
-        ttk.Button(self, text="Exit", command=lambda: controller.destroy).pack(pady=10)
+        ttk.Button(self, text="Login", command=lambda: self.controller.show_frame(LoginPage)).pack(pady=10)
+        ttk.Button(self, text="Signup", command=lambda: self.controller.show_frame(SignupPage)).pack(pady=10)
+        ttk.Button(self, text="Exit", command=lambda: self.controller.on_closing()).pack(pady=10)
     
 class LoginPage(ttk.Frame):
     def __init__(self, parent, controller):
@@ -148,7 +152,7 @@ class LoginPage(ttk.Frame):
         ttk.Entry(self, textvariable=self.username).place(x=130, y=10)
         ttk.Label(self, text="Password:", font=("ubuntu, 12")).place(x=40, y=40)
         ttk.Entry(self, textvariable=self.password, show="*").place(x=130, y=40)
-        ttk.Button(self, text="Back", command=lambda: controller.show_frame(StartPage)).place(x=70, y=70)
+        ttk.Button(self, text="Back", command=lambda: self.controller.show_frame(StartPage)).place(x=70, y=70)
         ttk.Button(self, text="Login", command=self.login).place(x=160, y=70)
 
     def login(self):
@@ -259,19 +263,15 @@ class TicTacToeGame(tk.Frame):
         self.controller : App = controller
         self.symbols = ['x','○','△','□']
         self.spec = spec
-        #self.need_update = True
         self.my_turn = False
         self.set_data(data)
         self.timer_timer = threading.Timer(1, lambda: self.timer_config())
 
-        #self.turn_ended = False
-        self.time_remaining = 30
+        self.time_remaining = PLAYER_TIME_LIMIT
         self.timer_update = None
         self.create_widgets()
 
-
     def request_update(self):
-        #self.need_update = True
         self.timer_update = threading.Timer(0.2, lambda: self.controller.client.request("update", self.game_id))
         self.timer_update.start()
 
@@ -287,18 +287,15 @@ class TicTacToeGame(tk.Frame):
         self.symbol = data["players"].index(self.controller.client.username) if not self.spec else None
         self.status = data["status"]
         self.my_turn = self.player_names[self.current_player] == self.controller.client.username
-        #self.need_update = (not self.my_turn or not self.started) or self.spec
 
     def refresh_page(self, data):
         self.set_data(data)
         self.config_widgets()
         if self.started:
             if self.status != -2:
-                #winner_timer = threading.Timer(2, lambda: self.declare_winner())
-                #winner_timer.start()
                 self.declare_winner()
             elif self.my_turn:
-                self.time_remaining = 30
+                self.time_remaining = PLAYER_TIME_LIMIT
                 self.timer_config()
             else: self.request_update()
         else: self.request_update()
@@ -382,7 +379,7 @@ class TicTacToeGame(tk.Frame):
         self.timer_label.grid(row=self.max_players+2, column=self.max_players+2)
         self.turn_label = tk.Label(self, text="Game not started", font=('Helvetica', 16))
         self.turn_label.grid(row=self.max_players+2, column=0, columnspan=self.max_players)
-        ttk.Button(self, text="Exit Game", command=lambda: self.exit_game()).grid(row=self.max_players+3,column=0,columnspan=self.max_players)
+        ttk.Button(self, text="Exit Game", command=lambda: self.exit_game(False)).grid(row=self.max_players+3,column=0,columnspan=self.max_players)
         self.winner_label = ttk.Label(self, text="", font=("Helvetica", 20))
         self.winner_label.grid(row=self.max_players+4,column=0,columnspan=self.max_players)        
 
@@ -397,11 +394,11 @@ class TicTacToeGame(tk.Frame):
         player_name = tk.Label(self, text=data["username"],font=('Helvetica', 16))
         player_name.grid(row=self.num_players+1, column=self.max_players+2)
 
-    def exit_game(self):
+    def exit_game(self, destroy=False):
         self.timer_timer.cancel()
         self.timer_update.cancel()
-
-        self.controller.client.request("exit_game", self.game_id, self.spec)
+        self.controller.in_game = False
+        self.controller.exit_game(self.game_id, self.spec, destroy)
 
 if __name__ == "__main__":
     app = App()

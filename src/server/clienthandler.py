@@ -32,12 +32,11 @@ class ClientHandler(threading.Thread):
                 cmd = cmds.Commands(self, self.server)
                 req = packet["req"]
                 # validate token (on login the client doesn't have token yet)
-                if req not in ["signup", "login"] and not cmd.valid_token(packet["token"]):
+                if req not in ["signup", "login", "exit"] and not cmd.valid_token(packet["token"]):
                     to_send = cmds.Data("err", "invalid_token").to_json()
                 #exit
                 elif req == "exit":
-                    self.server.connections.pop(self.addr)
-                    to_send = cmds.Data("suc", "exit")
+                    to_send = cmds.Data("suc", "exit").to_json()
                 #login
                 elif req == "login":
                     to_send = cmd.login(packet["data"])

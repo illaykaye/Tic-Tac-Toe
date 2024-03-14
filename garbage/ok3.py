@@ -1,4 +1,3 @@
-import game
 import json
 import time
 import datetime
@@ -9,7 +8,6 @@ import sys
 
 db_folder = Path(__file__).parents[2]
 USERS_F = db_folder / "db" / "users.json"
-LEADERB = db_folder / "db" /"leaderboard.json"
 SECRET_KEY = "yeehaw"
 
 class Data():

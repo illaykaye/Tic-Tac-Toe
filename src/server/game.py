@@ -2,7 +2,6 @@ from pathlib import Path
 import json
 import threading
 
-MOVE_PLAYER_LIMIT = 30
 db_folder = Path(__file__).parents[2]
 DB_F = db_folder / "db" / "users.json"
 
@@ -53,36 +52,61 @@ class Game():
         self.current_player = (self.current_player + 1) % len(self.players)
         self.updated_false()
 
+    def win_cases(self, i, j):
+        cases = []
+        discard_case = False
+        # rows
+        for k in range(2):
+            case = []
+            if j-k < 0: break
+            for n in range(3):
+                if j-k+n < self.max_players+2:
+                    case.append(self.grid[i][j-k+n])
+                else: 
+                    discard_case = True
+            if not discard_case: cases.append(case)
+
+        # columns
+        for k in range(3):
+            case = []
+            if i-k < 0: break
+            for n in range(3):
+                if i-k+n < self.max_players+2:
+                    case.append(self.grid[i-k+n][j])
+                else:
+                    discard_case = True
+            if not discard_case: cases.append(case)
+
+        # diagonals
+        for k in range(3):
+            case = []
+            if i-k < 0 or j-k < 0: break
+            for n in range(3):
+                if i-k+n < self.max_players+2:
+                    case.append(self.grid[i-k+n][j-k+n])
+                else:
+                    discard_case = True
+            if not discard_case: cases.append(case)
+
+        # opposite diagonals
+        for k in range(3):
+            case = []
+            if i+k < 0 or j-k < 0: break
+            for n in range(3):
+                if i-k+n < self.max_players+2:
+                    case.append(self.grid[i+k-n][j-k+n])
+                else:
+                    discard_case = True
+            if not discard_case: cases.append(case)
+        return cases
+
     # after a move is made check for winner
     def check_win(self, i, j):
-        # Function to check if there are 3 consecutive symbols in a sequence
-        def check_sequence(sequence):
-            count = 0
-            for symbol in sequence:
-                if symbol == self.current_player:
-                    count += 1
-                    if count == 3:
-                        return True
-                else:
-                    count = 0
-            return False
-
-        # Check row
-        if check_sequence(self.grid[i]):
-            return self.current_player
-        
-        # Check column
-        if check_sequence([self.grid[row][j] for row in range(self.max_players+1)]):
-            return self.current_player
-        
-        # Check diagonal (top-left to bottom-right)
-        if i == j and check_sequence([self.grid[row][row] for row in range(self.max_players+1)]):
-            return self.current_player
-        
-        # Check diagonal (top-right to bottom-left)
-        if i + j == self.max_players and check_sequence([self.grid[row][self.max_players - row] for row in range(self.max_players+1)]):
-            return self.current_player
-        
+        cases = self.win_cases(i,j)
+        print(cases)
+        for case in cases:
+            if all(sym == self.current_player for sym in case):
+                return self.current_player
         if self.count_moves == (self.max_players+1)**2:
             return -1
         return -2
@@ -109,6 +133,17 @@ class Game():
                     elif user["username"] == player_names[self.status]:
                         user["stats"]["wins"] += 1
                     else: user["stats"]["loses"] += 1
+            for user in db["users"]:
+                if user["username"] in player_names:
+                    if user["stats"]["wins"] > lb["wins"]["num"]:
+                        lb["wins"]["username"] = user["username"]
+                        lb["wins"]["num"] = user["wins"]
+                    if user["stats"]["draws"] > lb["draws"]["num"]:
+                        lb["draws"]["username"] = user["username"]
+                        lb["draws"]["username"] = user["draws"]
+                    if user["stats"]["loses"] > lb["loses"]["num"]:
+                        lb["loses"]["username"] = user["username"]
+                        lb["loses"]["username"] = user["loses"]
             with open(DB_F, "w") as f:
                 f.seek(0)
                 json.dump(db, f, indent=4)

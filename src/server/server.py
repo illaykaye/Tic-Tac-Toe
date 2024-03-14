@@ -19,7 +19,6 @@ class Server():
         self.port = port
         self.addr = (self.host, self.port)
 
-        #self.data_hazard = {"users": False, "leader": False}
         self.data_hazard = False
         self.connections = {}
         self.games = {}
@@ -38,8 +37,7 @@ class Server():
             print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}\n")  # printing the amount of threads working
 
             connection, address = self.server_socket.accept()  # Waiting for client to connect to server (blocking call)
-            #thread = threading.Thread(target=ch.ClientHandler, args=(self, connection, address))
-            #thread.start()
+
             client_handler = ch.ClientHandler(self, connection, address)
             client_handler.start()
             print(self.connections)
