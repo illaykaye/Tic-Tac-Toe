@@ -17,6 +17,7 @@ class ClientHandler(threading.Thread):
         self.server = server
         self.conn : socket.socket = conn
         self.addr = addr
+        self.in_game = False
         self.username = ''
 
     def run(self):
@@ -56,7 +57,7 @@ class ClientHandler(threading.Thread):
                     to_send = cmd.leaderboard()
                 # req to join game
                 elif req == "join":
-                    to_send = cmd.join_game(packet["data"]) # to_send would be to all other client, to_self to the client who sent the request
+                    to_send = cmd.join_game(packet["data"]) 
                 # ask to spec game
                 elif req == "spec":
                     to_send = cmd.spec_game(packet["data"])
@@ -72,12 +73,12 @@ class ClientHandler(threading.Thread):
                 elif req == "update":
                     to_send = cmd.update(packet["data"])
                 
-                # respond to client/s
+                # respond to client
                 self.conn.send(cp.encrypt(to_send))
 
-        except socket.timeout:
+        except socket.timeout: # handling a case where a socket timedout
             print("Connection with {} timed out.".format(self.addr))
-        except Exception as e:
+        except Exception as e: # handling other exceptions
             print("An error occured with {}: {}".format(self.addr, e))
         finally:
             self.server.connections.pop(self.addr)

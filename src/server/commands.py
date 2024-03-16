@@ -157,6 +157,7 @@ class Commands():
         if g.max_players == len(g.players):
             return Data("err", "full_game").to_json()
         else:
+            self.client.in_game = True
             g.add_player(self.client.conn, self.client.username)
             g.updated_false()
             return Data("game", "joined", g.complete_game()).to_json()
@@ -171,12 +172,15 @@ class Commands():
         g : game.Game = self.server.games[data["game_id"]]
         g.remove_player(self.client.conn, data["spec"], self.client.username)
         if g.num_players == 0 and len(g.spectators) == 0:
+            self.client.in_game = False
             del self.server.games[g.id]
+        elif not data["spec"]: g.next()
         if data["destroy"]:
             return Data("suc", "exit").to_json()
         elif data["spec"]:
             return Data("game", "left_spec").to_json()
         else:
+            
             return Data("game", "user_left_game", {"username": self.client.username}).to_json()
     
     def update(self, data):
