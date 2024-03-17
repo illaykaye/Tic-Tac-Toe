@@ -8,7 +8,16 @@ sys.path.append(str(path_root))
 
 import src.crypto.crypto as cp
 
+"""
+Client class for representing client connection
+"""
 class Client():
+    """
+    Constructor for Client.
+    param callback: callback method to call after receiving packet
+    param host: the server IP
+    param port: the server port
+    """
     def __init__(self, callback, host, port):
         self.IP = socket.gethostbyname(socket.gethostname())
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -19,15 +28,26 @@ class Client():
         self.token = 0
         self.username = ''
 
+    """
+    Start up the client (connect to the server)
+    """
     def start_client(self):
         self.client_socket.connect((self.host, self.port))  # Connecting to server's socket
         print("Connecting")
         packet = json.loads(cp.decrypt(self.client_socket.recv(4096)))
         self.callback(packet)
 
+    """
+    Close client connection.
+    """
     def close_client(self):
         self.client_socket.close()
 
+    """
+    Make a server request
+    param req: the request to make to the server
+    param argv: the rest of the data for the request
+    """
     def request(self, req, *argv):
         packet = {
             "token": self.token,
