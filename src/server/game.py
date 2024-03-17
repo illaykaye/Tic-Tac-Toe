@@ -46,6 +46,8 @@ class Game():
         else:
             self.players = [user for user in self.players if user[1] != username]
             self.num_players -= 1
+        self.updated.pop(username)
+
 
     # after a move is made, or someone joins the game
     def updated_false(self):
@@ -62,8 +64,10 @@ class Game():
             self.update_users()
         self.next()
 
+    # continues to the next player, if he left then called again
     def next(self):
         self.current_player = (self.current_player + 1) % len(self.players)
+        if len(self.left_players) == self.max_players: return
         if self.players[self.current_player][1] in self.left_players: self.next()
         self.updated_false()
 
@@ -116,7 +120,7 @@ class Game():
             case = []
             if i+k > self.max_players or j-k < 0: break
             for n in range(3):
-                if i+k-n < 0 and j-k+n < self.max_players+1:
+                if i+k-n >= 0 and j-k+n < self.max_players+1:
                     case.append(self.grid[i+k-n][j-k+n])
                 else:
                     discard_case = True
@@ -143,6 +147,8 @@ class Game():
 
     # after a win was made, this functions updates their stats
     def update_users(self):
+        if self.is_data_hazard: print("unable to update game")
+        self.server.data_hazard = True
         player_names =  [player[1] for player in self.players]
         
         try:

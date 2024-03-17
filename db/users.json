@@ -4,7 +4,7 @@
             "username": "illay",
             "password": "72d1b5da6eeaf1789df86487da50ad5e9dadb5ffaecb56b6de592aa286c9c1b8",
             "stats": {
-                "wins": 2,
+                "wins": 4,
                 "loses": 1,
                 "draws": 0
             }
@@ -23,7 +23,7 @@
             "password": "6f6a4e56098cfd9af29e3ae549503b370211a4e94421457fe4cfd39a38a1fa08",
             "stats": {
                 "wins": 0,
-                "loses": 1,
+                "loses": 3,
                 "draws": 0
             }
         }
@@ -31,11 +31,11 @@
     "leaderboard": {
         "wins": {
             "username": "illay",
-            "num": 2
+            "num": 4
         },
         "loses": {
-            "username": "ari",
-            "num": 2
+            "username": "matan",
+            "num": 3
         },
         "draws": {
             "username": "",
