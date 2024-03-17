@@ -13,7 +13,14 @@ PORT = 8080  # The port used by the server
 FORMAT = 'utf-8'
 ADDR = (HOST, PORT)  # Creating a tuple of IP+PORT
 
+"""
+Class representing the client
+"""
 class Client():
+    """
+    Constructor for Client class.
+    param callback: a callback function to call after having received a packet
+    """
     def __init__(self, callback):
         self.IP = socket.gethostbyname(socket.gethostname())
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,6 +28,9 @@ class Client():
         self.token = 0
         self.username = ''
 
+    """
+    Connect the client to the server
+    """
     def start_client(self):
         self.client_socket.connect((HOST, PORT))  # Connecting to server's socket
         print("Connecting")
@@ -28,9 +38,15 @@ class Client():
         print(packet)
         self.callback(packet)
 
+    """
+    Close client socket
+    """
     def close_client(self):
         self.client_socket.close()
 
+    """
+    Make a server request
+    """
     def request(self, req, *argv):
         packet = {
             "token": self.token,

@@ -5,7 +5,13 @@ import clnt
 
 PLAYER_TIME_LIMIT = 30
 
+"""
+Class for managing the GUI aspect of the game.
+"""
 class App(tk.Tk):
+    """
+    Constructor method, sets up the GUI
+    """
     def __init__(self):
         super().__init__()
         self.title("Tic Tac Toe")
@@ -24,13 +30,21 @@ class App(tk.Tk):
         self.init_frames()
         self.in_game = False
         self.client.start_client()
-    
+
+    """
+    Create frames for each aspect of the game (Start, login, signup, etc.)
+    """
     def init_frames(self):
         for F in (StartPage, LoginPage, SignupPage, MainPage, LeaderPage, AvalGamesPage, NewGamePage):
             frame = F(self.container, self)
             self.frames[F] = frame
             frame.grid_propagate(False)
 
+    """
+    Handle responses to a socket packet.
+    Depending on the status of the packet, show a specific frame.
+    param packet: The data packet
+    """
     def handle_respone(self, packet):
         # error response 
         if packet["status"] == "err":
@@ -106,17 +120,29 @@ class App(tk.Tk):
         self.frames[TicTacToeGame].refresh_page(data)
         #self.frames[TicTacToeGame].timer_config(data["time_remaining"])
 
+    """
+    Request to exit the specified game.
+    param game_id: The id of the game to leave
+    param spec: whether or not the user is spectating
+    destroy: whether or not to destroy the game
+    """
     def exit_game(self, game_id, spec, destroy=False):
         self.frames[TicTacToeGame].pack_forget()
         del self.frames[TicTacToeGame]
         self.client.request("exit_game", game_id, spec, destroy)
 
+    """
+    Method to call when closing the window
+    """
     def on_closing(self):
         if self.in_game:
             self.frames[TicTacToeGame].exit_game(destroy=True)
         else:
             self.destroy()
 
+    """
+    Display error message window
+    """
     def err_win(self, err):
         error_win = tk.Tk()
         error_win.title("Error")
@@ -125,13 +151,19 @@ class App(tk.Tk):
         inc.config(foreground='red')
         inc.pack()
 
+    """
+    Display a generic message window
+    """
     def msg_win(self, msg):
         msg_win = tk.Tk()
         msg_win.title("msg")
         msg_win.geometry('300x60')
         inc = ttk.Label(msg_win, text=msg, font=("ubuntu, 14"))
         inc.pack()
-    
+
+"""
+Frame for startup page
+"""
 class StartPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -141,7 +173,10 @@ class StartPage(ttk.Frame):
         ttk.Button(self, text="Login", command=lambda: self.controller.show_frame(LoginPage)).pack(pady=10)
         ttk.Button(self, text="Signup", command=lambda: self.controller.show_frame(SignupPage)).pack(pady=10)
         ttk.Button(self, text="Exit", command=lambda: self.controller.on_closing()).pack(pady=10)
-    
+
+"""
+Frame for login page
+"""
 class LoginPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -156,9 +191,15 @@ class LoginPage(ttk.Frame):
         ttk.Button(self, text="Back", command=lambda: self.controller.show_frame(StartPage)).place(x=70, y=70)
         ttk.Button(self, text="Login", command=self.login).place(x=160, y=70)
 
+    """
+    Send request to server to login.
+    """
     def login(self):
         self.controller.client.request("login", self.username.get(), self.password.get())
 
+"""
+Signup page frame
+"""
 class SignupPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -172,20 +213,32 @@ class SignupPage(ttk.Frame):
         ttk.Entry(self, textvariable=self.password, show="*").place(x=130, y=40)
         ttk.Button(self, text="Back", command=lambda: controller.show_frame(StartPage)).place(x=70, y=70)
         ttk.Button(self, text="Signup", command=self.signup).place(x=160, y=70)
-        
+
+    """
+    Send request to server for signup.
+    """
     def signup(self):
         self.controller.client.request("signup", self.username.get(), self.password.get())
-        
+
+"""
+Main menu frame
+"""
 class MainPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller : App = controller
 
+    """
+    Refresh the main page
+    """
     def refresh_page(self):
         for widget in self.winfo_children():
             widget.destroy()
         self.create_widgets()   
 
+    """
+    Create widgets for user (welcome, new game, etc)
+    """
     def create_widgets(self):
         ttk.Label(self, text="Welcome {}!".format(self.controller.client.username), font=("ubuntu",16)).pack(pady=2,expand=True)
         ttk.Button(self, text="New Game", command=lambda: self.controller.show_frame(NewGamePage)).pack(pady=3,expand=True)
@@ -194,16 +247,25 @@ class MainPage(ttk.Frame):
         ttk.Button(self, text="Logout", command=lambda: self.controller.client.request("logout")).pack(pady=1,expand=True)
         ttk.Button(self, text='Exit', command=lambda: self.controller.client.request("exit")).pack(pady=3,expand=True)
 
+"""
+Leaderboard frame
+"""
 class LeaderPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller : App = controller
 
+    """
+    Refresh page with new data
+    """
     def refresh_page(self, data: dict):
         for widget in self.winfo_children():
             widget.destroy()
         self.create_widgets(data)
 
+    """
+    Display widgets for most wins, losses, and draws
+    """
     def create_widgets(self, data: dict):
         ttk.Label(self, text="Leaderboard", font=("ubuntu",16)).pack(pady=3,expand=True)
         ttk.Label(self, text="Most wins: {}, {}".format(data["wins"]["username"], data["wins"]["num"])).pack(pady=3,expand=True)
@@ -211,6 +273,9 @@ class LeaderPage(ttk.Frame):
         ttk.Label(self, text="Most draws: {}, {}".format(data["draws"]["username"], data["draws"]["num"])).pack(pady=3,expand=True)
         ttk.Button(self, text="Back", command=lambda: self.controller.show_frame(MainPage)).pack(pady=3,expand=True,side="bottom")
 
+"""
+Frame for creating a new game
+"""
 class NewGamePage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -221,33 +286,50 @@ class NewGamePage(ttk.Frame):
         ttk.Button(self, text="4", command=lambda: self.controller.client.request("new",4)).pack(pady=1,expand=True)
         ttk.Button(self, text="Back", command=lambda: self.controller.show_frame(MainPage)).pack(pady=3,expand=True,side="bottom")
 
+"""
+Frame to display available games
+"""
 class AvalGamesPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller : App = controller
 
+    """
+    Refresh page with new data
+    """
     def refresh_page(self, data: dict):
         for widget in self.winfo_children():
             widget.destroy()
         self.create_widgets(data)
 
+    """
+    Create widgets for the list of available games
+    param data: The data for the list of available games
+    """
     def create_widgets(self, data: dict):
         ttk.Label(self, text="Available Games", font=("ubuntu", 16)).pack(pady=3)
         count = 1
+
         if len(data) == 0:
+            # If there are no games, print so
             ttk.Label(self, text="No games available").pack(pady=3, expand=True)
         else:
             print(data)
             for game_id, game in data.items():
+                # game_info = information on the game
                 game_info = f"Game: {count}, Max Players: {game['max_players']}, Players in Game: {game['num_players']}"
+                # If the game is not full, allow the user to join it
                 if game["num_players"] < game["max_players"]:
                     button_text = "Join"
                     state = tk.NORMAL
                     command = lambda id=game_id: self.controller.client.request("join", id)
+                # o/w it is full
                 else:
                     button_text = "Full"
                     state = tk.DISABLED
                     command = None
+
+                # Create widget for joining the current game
                 row_frame = ttk.Frame(self)
                 ttk.Label(row_frame, text=game_info).pack(side=tk.LEFT,padx=5)
                 join_button = ttk.Button(row_frame, text=button_text, command=command, state=state)
@@ -257,7 +339,9 @@ class AvalGamesPage(ttk.Frame):
                 row_frame.pack()
         ttk.Button(self, text="Back", command=lambda: self.controller.show_frame(MainPage)).pack(side=tk.BOTTOM,pady=3)
 
-
+"""
+Frame for the game itself
+"""
 class TicTacToeGame(tk.Frame):
     def __init__(self, parent, controller, data, spec=False):
         super().__init__(parent)
@@ -272,10 +356,16 @@ class TicTacToeGame(tk.Frame):
         self.timer_update = threading.Timer(0.2, lambda: self.controller.client.request("update", self.game_id))
         self.create_widgets()
 
+    """
+    Request update from server
+    """
     def request_update(self):
         self.timer_update = threading.Timer(0.2, lambda: self.controller.client.request("update", self.game_id))
         self.timer_update.start()
 
+    """
+    Set data from json to object members
+    """
     def set_data(self, data):
         print(data)
         self.game_id = data["game_id"]
@@ -290,6 +380,9 @@ class TicTacToeGame(tk.Frame):
         self.status = data["status"]
         self.my_turn = self.player_names[self.current_player] == self.controller.client.username
 
+    """
+    Refresh the current frame with new data.
+    """
     def refresh_page(self, data):
         self.set_data(data)
         self.config_widgets()
@@ -301,13 +394,18 @@ class TicTacToeGame(tk.Frame):
                 self.timer_config()
             else: self.request_update()
         else: self.request_update()
-            
 
+    """
+    Tell server current turn has ended
+    """
     def turn_ended(self):
         self.timer_timer.cancel()
         self.timer_label.config(text="00:00")
         self.controller.client.request("turn_ended", self.game_id)
 
+    """
+    Write who won the game
+    """
     def declare_winner(self):
         if self.status == -1:
             text = "Draw!"
@@ -323,19 +421,30 @@ class TicTacToeGame(tk.Frame):
         self.spec = False
         self.winner_label.config(text=text)
 
+    """
+    Set up timer for displaying how much time is left.
+    """
     def timer_config(self):
         self.timer_timer = threading.Timer(1, lambda: self.timer_config())
+        # If the game has not started, check back in one second to see if it has
         if not self.started: self.timer_timer.start()
         else:
+            # o/w if there is no time remaining, the current turn has ended
             if self.time_remaining < 0: self.turn_ended()
+            # o/w print how much time is left
             else:
                 minutes = int(self.time_remaining // 60)
                 seconds = int(self.time_remaining % 60)
                 time_str = f"{minutes:02d}:{seconds:02d}"
                 self.timer_label.config(text=time_str)
+                # decrement the amount of time left by 1 sec
                 self.time_remaining -= 1
+                # start the timer again so the whole process is repeated in the next second
                 self.timer_timer.start()
 
+    """
+    Configure widgets.
+    """
     def config_widgets(self):
         for i in range(self.max_players+1):
             for j in range(self.max_players+1):
@@ -364,6 +473,9 @@ class TicTacToeGame(tk.Frame):
                 turn_text = "{}'s turn".format(self.player_names[self.current_player])
             self.turn_label.config(text=turn_text)
 
+    """
+    Create tic tac toe grid and player list
+    """
     def create_widgets(self):
         # Tic Tac Toe grid
         #state = tk.DISABLED if self.spec else tk.NORMAL
@@ -394,17 +506,29 @@ class TicTacToeGame(tk.Frame):
         self.winner_label = ttk.Label(self, text="", font=("Helvetica", 20))
         self.winner_label.grid(row=self.max_players+4,column=0,columnspan=self.max_players)        
 
+    """
+    Move to the (i,j)th coordinate
+    """
     def move(self, i, j):
+        # Stop the timer
         self.timer_timer.cancel()
+        # Set it to zero
         self.timer_label.config(text="00:00")
+        # Move to the specified place
         self.tic_tac_toe_grid[i][j].config(text=self.symbols[self.symbol],state=tk.DISABLED)
         self.controller.client.request("move", self.game_id, i, j)
-    
+
+    """
+    Add a user to the game
+    """
     def add_player(self, data):
         self.num_players += 1
         player_name = tk.Label(self, text=data["username"],font=('Helvetica', 16))
         player_name.grid(row=self.num_players+1, column=self.max_players+2)
 
+    """
+    Exit the game
+    """
     def exit_game(self, destroy=False):
         self.timer_timer.cancel()
         self.timer_update.cancel()
