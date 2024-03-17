@@ -5,8 +5,17 @@
             "password": "72d1b5da6eeaf1789df86487da50ad5e9dadb5ffaecb56b6de592aa286c9c1b8",
             "stats": {
                 "wins": 2,
-                "loses": 0,
-                "draws": 1
+                "loses": 1,
+                "draws": 0
+            }
+        },
+        {
+            "username": "ari",
+            "password": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "stats": {
+                "wins": 1,
+                "loses": 2,
+                "draws": 0
             }
         },
         {
@@ -15,72 +24,18 @@
             "stats": {
                 "wins": 0,
                 "loses": 1,
-                "draws": 2
-            }
-        },
-        {
-            "username": "jesus",
-            "password": "3a5088295708d3304f06de0499b9243bfbd68d14878615c531f0e346f47b389d",
-            "stats": {
-                "wins": 0,
-                "loses": 0,
                 "draws": 0
-            }
-        },
-        {
-            "username": "okok",
-            "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
-            "stats": {
-                "wins": 0,
-                "loses": 0,
-                "draws": 0
-            }
-        },
-        {
-            "username": "illay1",
-            "password": "72d1b5da6eeaf1789df86487da50ad5e9dadb5ffaecb56b6de592aa286c9c1b8",
-            "stats": {
-                "wins": 0,
-                "loses": 0,
-                "draws": 0
-            }
-        },
-        {
-            "username": "illay2",
-            "password": "72d1b5da6eeaf1789df86487da50ad5e9dadb5ffaecb56b6de592aa286c9c1b8",
-            "stats": {
-                "wins": 0,
-                "loses": 0,
-                "draws": 0
-            }
-        },
-        {
-            "username": "amir",
-            "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
-            "stats": {
-                "wins": 0,
-                "loses": 0,
-                "draws": 0
-            }
-        },
-        {
-            "username": "ari",
-            "password": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-            "stats": {
-                "wins": 0,
-                "loses": 2,
-                "draws": 1
             }
         }
     ],
     "leaderboard": {
         "wins": {
-            "username": "",
-            "num": 0
+            "username": "illay",
+            "num": 2
         },
         "loses": {
-            "username": "",
-            "num": 0
+            "username": "ari",
+            "num": 2
         },
         "draws": {
             "username": "",

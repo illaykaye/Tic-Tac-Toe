@@ -80,9 +80,8 @@ class Commands():
                     if user["password"] == hashed_password:
                         self.client.username = username
                         d = Data("suc", "logged", {"username": username, "token": self.generate_token(username)})
-                    else: 
-                        d = Data("err", "username or password incorrect")
-                        return
+                        break
+                d = Data("err", "username or password incorrect")
         except:
             d = Data("err", "cannot open db")
         finally:
@@ -153,7 +152,9 @@ class Commands():
         return Data("suc", "logout").to_json()
 
     def join_game(self, data):
-        g : game.Game = self.server.games[data["game_id"]]
+        g : game.Game = self.server.games.get(data["game_id"])
+        if g is None:
+            return Data("err", "game doesn't exist").to_json()
         if g.max_players == len(g.players):
             return Data("err", "full_game").to_json()
         else:
@@ -163,24 +164,22 @@ class Commands():
             return Data("game", "joined", g.complete_game()).to_json()
         
     def spec_game(self, data):
-        g : game.Game = self.server.games[data["game_id"]]
-        g.add_spectator(self.client.conn)
+        g : game.Game = self.server.games.get(data["game_id"])
+        if g is None: return Data("err", "game doesn't exist").to_json()
+        g.add_spectator(self.client.username)
         return Data("game", "spec", g.complete_game()).to_json()
 
     def exit_game(self, data):
         print("exiting game")
-        g : game.Game = self.server.games[data["game_id"]]
-        g.remove_player(self.client.conn, data["spec"], self.client.username)
+        g : game.Game = self.server.games.get(data["game_id"])
+        if g is None: return Data("err", "game doesn't exist").to_json()
+        g.remove_player(self.client.username, data["spec"])
         if g.num_players == 0 and len(g.spectators) == 0:
             self.client.in_game = False
             del self.server.games[g.id]
-        elif not data["spec"]: g.next()
         if data["destroy"]:
             return Data("suc", "exit").to_json()
-        elif data["spec"]:
-            return Data("game", "left_spec").to_json()
         else:
-            
             return Data("game", "user_left_game", {"username": self.client.username}).to_json()
     
     def update(self, data):

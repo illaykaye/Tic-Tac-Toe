@@ -68,6 +68,7 @@ class App(tk.Tk):
             elif packet["msg"] == "spec":
                 self.open_game(packet["data"], packet["msg"] == "spec")
             elif packet["msg"] == "user_left_game":
+                print("hello")
                 self.show_frame(MainPage)
             elif packet["msg"] == "left_spec":
                 self.show_frame(MainPage)
@@ -99,7 +100,7 @@ class App(tk.Tk):
     # init game frame
     def open_game(self, data, spec):
         frame : ttk.Frame = self.frames.get(TicTacToeGame)
-        #if frame != None: del self.frames[frame]
+        if frame != None: del self.frames[frame]
         self.frames[TicTacToeGame] = TicTacToeGame(self.container, self, data, spec)
         self.show_frame(TicTacToeGame)
         self.frames[TicTacToeGame].refresh_page(data)
@@ -206,8 +207,8 @@ class LeaderPage(ttk.Frame):
     def create_widgets(self, data: dict):
         ttk.Label(self, text="Leaderboard", font=("ubuntu",16)).pack(pady=3,expand=True)
         ttk.Label(self, text="Most wins: {}, {}".format(data["wins"]["username"], data["wins"]["num"])).pack(pady=3,expand=True)
-        ttk.Label(self, text="Most wins: {}, {}".format(data["loses"]["username"], data["loses"]["num"])).pack(pady=3,expand=True)
-        ttk.Label(self, text="Most wins: {}, {}".format(data["draws"]["username"], data["draws"]["num"])).pack(pady=3,expand=True)
+        ttk.Label(self, text="Most loses: {}, {}".format(data["loses"]["username"], data["loses"]["num"])).pack(pady=3,expand=True)
+        ttk.Label(self, text="Most draws: {}, {}".format(data["draws"]["username"], data["draws"]["num"])).pack(pady=3,expand=True)
         ttk.Button(self, text="Back", command=lambda: self.controller.show_frame(MainPage)).pack(pady=3,expand=True,side="bottom")
 
 class NewGamePage(ttk.Frame):
@@ -238,7 +239,7 @@ class AvalGamesPage(ttk.Frame):
         else:
             print(data)
             for game_id, game in data.items():
-                game_info = f"Game: {count}, Max Players: {game['max_players']}, Players in Game: {game['num_players']}, Spectators: {game['num_spec']}"
+                game_info = f"Game: {count}, Max Players: {game['max_players']}, Players in Game: {game['num_players']}"
                 if game["num_players"] < game["max_players"]:
                     button_text = "Join"
                     state = tk.NORMAL
@@ -268,7 +269,7 @@ class TicTacToeGame(tk.Frame):
         self.timer_timer = threading.Timer(1, lambda: self.timer_config())
 
         self.time_remaining = PLAYER_TIME_LIMIT
-        self.timer_update = None
+        self.timer_update = threading.Timer(0.2, lambda: self.controller.client.request("update", self.game_id))
         self.create_widgets()
 
     def request_update(self):
@@ -281,6 +282,7 @@ class TicTacToeGame(tk.Frame):
         self.max_players = data["max_players"]
         self.num_players = data["num_players"]
         self.player_names = data["players"]
+        self.left_players = data["left_players"]
         self.board = data["grid"]
         self.current_player = data["current_player"]
         self.started = data["started"]
@@ -307,7 +309,13 @@ class TicTacToeGame(tk.Frame):
         self.controller.client.request("turn_ended", self.game_id)
 
     def declare_winner(self):
-        text = "Draw!" if self.status == -1 else "{} won!".format(self.player_names[self.status])
+        if self.status == -1:
+            text = "Draw!"
+        else:
+            if self.player_names[self.current_player] == self.controller.client.username:
+                text = "You won!"
+            else:
+                text = "{} won!".format(self.player_names[self.status])
         self.timer_timer.cancel()
         self.timer_update.cancel()
         self.spec = True
@@ -342,7 +350,10 @@ class TicTacToeGame(tk.Frame):
                 self.tic_tac_toe_grid[i][j].config(text=sym, state=state)
         for i in range(self.max_players):
             if i < self.num_players:
-                name = self.player_names[i]
+                if self.player_names[i] not in self.left_players:
+                    name = "{}: {}".format(self.player_names[i], self.symbols[i])
+                else:
+                    name = "{} left".format(self.player_names[i], self.symbols[i])
             else:
                 name = " "
             self.player_labels[i].config(text=name)

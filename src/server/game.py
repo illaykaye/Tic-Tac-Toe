@@ -12,14 +12,17 @@ class Game():
         self.grid = [[-1]*(x+1) for _ in range(x+1)]
         self.max_players = x
         self.num_players = 0
-        self.players = []
         self.spectators = []
+        self.players = []
+        self.left_players = [] # players that left the game mid-game
         self.current_player = 0
         self.started = False
-        self.updated = {}
-        self.count_moves = 0
+        self.updated = {} # dict that has clients as keys and a boolean 
+        #indicating whether that have been updated since last change or not
+        self.count_moves = 0 # num of moves made so far
         self.status = -2
 
+    # adding a player to the game | if reached max players, the game starts
     def add_player(self, conn, username: str):
         self.players.append((conn, username))
         self.num_players += 1
@@ -27,19 +30,30 @@ class Game():
             self.started = True
         self.updated[username] = False
 
-    def add_spectator(self, conn):
-        self.spectators.append(conn)
+    def add_spectator(self, username: str):
+        self.spectators.append(username)
+        self.updated[username] = False
 
-    def remove_player(self, conn, spec, username):
-        if spec: self.spectators.remove(conn)
+    # removing a player = adding him the the list of players that left
+    # this way the game knows to skip on him
+    # if game hasn't started yet, we jut remove him completely from the players list
+    # if it has started we want to still see him on the list, this way we make sure no one else will use his symbol
+    def remove_player(self, username, spec):
+        if spec:
+            self.spectators.remove(username)
+        elif self.started and self.status == -2:
+            self.left_players.append(username)
         else:
             self.players = [user for user in self.players if user[1] != username]
             self.num_players -= 1
 
+    # after a move is made, or someone joins the game
     def updated_false(self):
         for username, _ in self.updated.items():
             self.updated[username] = False
 
+    # make a move on the board
+    # checks if this move made the current player win
     def move(self,i,j):
         self.count_moves += 1
         self.grid[i][j] = self.current_player
@@ -50,66 +64,75 @@ class Game():
 
     def next(self):
         self.current_player = (self.current_player + 1) % len(self.players)
+        if self.players[self.current_player][1] in self.left_players: self.next()
         self.updated_false()
 
+    # for each coordinate in which a player place a symbol
+    # there are 12 combinations of tuples (i,j) of coordinates (in each direction, the last move can be the first, middle or last)
+    # that can be a possible winning row, column or diagonal
+    # that include that last move made by the player
+    # this function returns all combinations that are within the bounds of the grid 
     def win_cases(self, i, j):
         cases = []
         discard_case = False
         # rows
-        for k in range(2):
+        for k in range(3):
             case = []
             if j-k < 0: break
             for n in range(3):
-                if j-k+n < self.max_players+2:
+                if j-k+n < self.max_players+1:
                     case.append(self.grid[i][j-k+n])
                 else: 
                     discard_case = True
             if not discard_case: cases.append(case)
+            discard_case = False
 
         # columns
         for k in range(3):
             case = []
             if i-k < 0: break
             for n in range(3):
-                if i-k+n < self.max_players+2:
+                if i-k+n < self.max_players+1:
                     case.append(self.grid[i-k+n][j])
                 else:
                     discard_case = True
             if not discard_case: cases.append(case)
+            discard_case = False
 
-        # diagonals
+        # diagonals (ex: i=0,j=0: [(0,0), (1,1), (2,2)])
         for k in range(3):
             case = []
             if i-k < 0 or j-k < 0: break
             for n in range(3):
-                if i-k+n < self.max_players+2:
+                if i-k+n < self.max_players+1 and j-k+n < self.max_players+1:
                     case.append(self.grid[i-k+n][j-k+n])
                 else:
                     discard_case = True
             if not discard_case: cases.append(case)
+            discard_case = False
 
-        # opposite diagonals
+        # opposite diagonals (ex: i=2,j=0: [(2,0), (1,1), (0,2)])
         for k in range(3):
             case = []
-            if i+k < 0 or j-k < 0: break
+            if i+k > self.max_players or j-k < 0: break
             for n in range(3):
-                if i-k+n < self.max_players+2:
+                if i+k-n < 0 and j-k+n < self.max_players+1:
                     case.append(self.grid[i+k-n][j-k+n])
                 else:
                     discard_case = True
             if not discard_case: cases.append(case)
+            discard_case = False
         return cases
 
     # after a move is made check for winner
     def check_win(self, i, j):
         cases = self.win_cases(i,j)
-        print(cases)
         for case in cases:
             if all(sym == self.current_player for sym in case):
-                return self.current_player
+                return self.current_player # current player (the one who made the move) wins
         if self.count_moves == (self.max_players+1)**2:
-            return -1
-        return -2
+            return -1 # draw
+        return -2 # no win or draw, game continues
 
     # check if the db file is free to use
     def is_data_hazard(self, n=0):
@@ -118,6 +141,7 @@ class Game():
         if self.server.data_hazard: threading.Timer(0.5, lambda: self.is_data_hazard, n+1)
         return False
 
+    # after a win was made, this functions updates their stats
     def update_users(self):
         player_names =  [player[1] for player in self.players]
         
@@ -126,52 +150,35 @@ class Game():
             with open(DB_F, "r") as f:
                 f.seek(0)
                 db = json.load(f)
+            print(db)
             for user in db["users"]:
+                print(user["stats"])
                 if user["username"] in player_names:
                     if self.status == -1:
                         user["stats"]["draws"] += 1
                     elif user["username"] == player_names[self.status]:
                         user["stats"]["wins"] += 1
-                    else: user["stats"]["loses"] += 1
-            for user in db["users"]:
-                if user["username"] in player_names:
-                    if user["stats"]["wins"] > lb["wins"]["num"]:
-                        lb["wins"]["username"] = user["username"]
-                        lb["wins"]["num"] = user["wins"]
-                    if user["stats"]["draws"] > lb["draws"]["num"]:
-                        lb["draws"]["username"] = user["username"]
-                        lb["draws"]["username"] = user["draws"]
-                    if user["stats"]["loses"] > lb["loses"]["num"]:
-                        lb["loses"]["username"] = user["username"]
-                        lb["loses"]["username"] = user["loses"]
-            with open(DB_F, "w") as f:
-                f.seek(0)
-                json.dump(db, f, indent=4)
-
-            # update leaderboard
-            with open(DB_F, "r") as f:
-                f.seek(0)
-                db = json.load(f)
+                    else: user["stats"]["loses"] += 1            
+            
             lb = db["leaderboard"]
-            for user in db["users"]:
+            for user in db["users"]: # updating the leaderboard
                 if user["username"] in player_names:
                     if user["stats"]["wins"] > lb["wins"]["num"]:
                         lb["wins"]["username"] = user["username"]
-                        lb["wins"]["num"] = user["wins"]
+                        lb["wins"]["num"] = user["stats"]["wins"]
                     if user["stats"]["draws"] > lb["draws"]["num"]:
                         lb["draws"]["username"] = user["username"]
-                        lb["draws"]["username"] = user["draws"]
+                        lb["draws"]["num"] = user["stats"]["draws"]
                     if user["stats"]["loses"] > lb["loses"]["num"]:
                         lb["loses"]["username"] = user["username"]
-                        lb["loses"]["username"] = user["loses"]
+                        lb["loses"]["num"] = user["stats"]["loses"]
             with open(DB_F, "w") as f:
                 f.seek(0)
                 json.dump(db, f, indent=4)
-        except Exception as e:
-            print("ok")
         finally:
             self.server.data_hazard = False
 
+    # returns the complete data needed for each client to display the game
     def complete_game(self):
         return {
             "game_id": self.id,
@@ -179,57 +186,9 @@ class Game():
             "max_players": self.max_players,
             "num_players": self.num_players,
             "players": [player[1] for player in self.players],
+            "left_players": self.left_players,
             "current_player": self.current_player,
             "status": self.status,
             "grid": self.grid
         }
     
-
-        '''
-            def check_win(self,i,j):
-                symbol = self.current_player - 1
-
-                # check row
-                if j == 0:
-                    row_opts = [self.grid[i][0:2]]
-                elif j == self.max_players:
-                    row_opts = [self.grid[i][j-2:j]]
-                else:
-                    if self.max_players == 2:
-                        row_opts = [self.grid[i][0:2]]
-                    elif self.max_players == 3:
-                        row_opts = [self.grid[i][k:k+2] for k in range(2)]
-                    else:
-                        row_opts = [self.grid[i][k:k+2] for k in range(3)]
-                        if j == 1:
-                            del row_opts[0]
-                        elif j == 3:
-                            del row_opts[2]
-
-                for row in row_opts:
-                    if all(row, symbol): 
-                        return True
-                
-                # check column 
-                if i == 0:
-                    col_opts = [self.grid[0:2][j]]
-                elif i == self.max_players:
-                    col_opts = [self.grid[i-2:i][j]]
-                else:
-                    if self.max_players == 2:
-                        col_opts = [self.grid[0:2][j]]
-                    elif self.max_players == 3:
-                        col_opts = [self.grid[k:k+2][j] for k in range(2)]
-                    else:
-                        col_opts = [self.grid[k:k+2][j] for k in range(3)]
-                        if i == 1:
-                            del col_opts[0]
-                        elif i == 3:
-                            del col_opts[2]
-
-                for col in col_opts:
-                    if all(col, symbol): 
-                        return True
-
-                # check diaganols
-                return False'''
