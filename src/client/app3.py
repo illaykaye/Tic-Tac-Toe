@@ -4,6 +4,10 @@ import threading
 import clnt
 
 PLAYER_TIME_LIMIT = 30
+HOST = '127.0.0.1'  # The server's hostname or IP address
+PORT = 8080  # The port used by the server
+FORMAT = 'utf-8'
+ADDR = (HOST, PORT)  # Creating a tuple of IP+PORT
 
 class App(tk.Tk):
     def __init__(self):
@@ -13,7 +17,7 @@ class App(tk.Tk):
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", lambda: self.on_closing())
 
-        self.client = clnt.Client(self.handle_respone)
+        self.client = clnt.Client(self.handle_respone, HOST, PORT)
         self.container = ttk.Frame(self)
         self.container.pack(fill=tk.BOTH, expand=True)
 
@@ -68,7 +72,7 @@ class App(tk.Tk):
             elif packet["msg"] == "spec":
                 self.open_game(packet["data"], packet["msg"] == "spec")
             elif packet["msg"] == "user_left_game":
-                print("hello")
+                self.in_game = False
                 self.show_frame(MainPage)
             elif packet["msg"] == "left_spec":
                 self.show_frame(MainPage)
@@ -88,7 +92,6 @@ class App(tk.Tk):
             frame.pack_forget()
         frame : ttk.Frame = self.frames.get(cont) # self.frames[cont]
         if data != None:
-            print("okok")
             frame.refresh_page(data)
             self.frames[cont] = frame
         elif cont == MainPage: frame.refresh_page()
@@ -312,7 +315,7 @@ class TicTacToeGame(tk.Frame):
         if self.status == -1:
             text = "Draw!"
         else:
-            if self.player_names[self.current_player] == self.controller.client.username:
+            if self.player_names[self.status] == self.controller.client.username:
                 text = "You won!"
             else:
                 text = "{} won!".format(self.player_names[self.status])
@@ -408,7 +411,6 @@ class TicTacToeGame(tk.Frame):
     def exit_game(self, destroy=False):
         self.timer_timer.cancel()
         self.timer_update.cancel()
-        self.controller.in_game = False
         self.controller.exit_game(self.game_id, self.spec, destroy)
 
 if __name__ == "__main__":

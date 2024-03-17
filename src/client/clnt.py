@@ -8,24 +8,21 @@ sys.path.append(str(path_root))
 
 import src.crypto.crypto as cp
 
-HOST = '127.0.0.1'  # The server's hostname or IP address
-PORT = 8080  # The port used by the server
-FORMAT = 'utf-8'
-ADDR = (HOST, PORT)  # Creating a tuple of IP+PORT
-
 class Client():
-    def __init__(self, callback):
+    def __init__(self, callback, host, port):
         self.IP = socket.gethostbyname(socket.gethostname())
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.callback = callback
+        self.host = host
+        self.port = port
+        self.addr = (host, port)
         self.token = 0
         self.username = ''
 
     def start_client(self):
-        self.client_socket.connect((HOST, PORT))  # Connecting to server's socket
+        self.client_socket.connect((self.host, self.port))  # Connecting to server's socket
         print("Connecting")
         packet = json.loads(cp.decrypt(self.client_socket.recv(4096)))
-        print(packet)
         self.callback(packet)
 
     def close_client(self):
